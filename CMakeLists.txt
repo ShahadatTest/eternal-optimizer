@@ -47,14 +47,16 @@ if(ETERNAL_GUI)
   FetchContent_Declare(glfw GIT_REPOSITORY https://github.com/glfw/glfw.git GIT_TAG 3.4 GIT_SHALLOW TRUE)
   FetchContent_Declare(imgui GIT_REPOSITORY https://github.com/ocornut/imgui.git GIT_TAG v1.91.5 GIT_SHALLOW TRUE)
   FetchContent_Declare(implot GIT_REPOSITORY https://github.com/epezent/implot.git GIT_TAG v0.16 GIT_SHALLOW TRUE)
-  FetchContent_MakeAvailable(glfw imgui implot)
+  FetchContent_Declare(implot3d GIT_REPOSITORY https://github.com/brenocq/implot3d.git GIT_TAG v0.3 GIT_SHALLOW TRUE)
+  FetchContent_MakeAvailable(glfw imgui implot implot3d)
 
   add_library(imgui_lib STATIC
     ${imgui_SOURCE_DIR}/imgui.cpp ${imgui_SOURCE_DIR}/imgui_draw.cpp ${imgui_SOURCE_DIR}/imgui_tables.cpp
     ${imgui_SOURCE_DIR}/imgui_widgets.cpp ${imgui_SOURCE_DIR}/imgui_demo.cpp
     ${imgui_SOURCE_DIR}/backends/imgui_impl_glfw.cpp ${imgui_SOURCE_DIR}/backends/imgui_impl_opengl3.cpp
-    ${implot_SOURCE_DIR}/implot.cpp ${implot_SOURCE_DIR}/implot_items.cpp)
-  target_include_directories(imgui_lib PUBLIC ${imgui_SOURCE_DIR} ${imgui_SOURCE_DIR}/backends ${implot_SOURCE_DIR})
+    ${implot_SOURCE_DIR}/implot.cpp ${implot_SOURCE_DIR}/implot_items.cpp
+    ${implot3d_SOURCE_DIR}/implot3d.cpp ${implot3d_SOURCE_DIR}/implot3d_items.cpp ${implot3d_SOURCE_DIR}/implot3d_meshes.cpp)
+  target_include_directories(imgui_lib PUBLIC ${imgui_SOURCE_DIR} ${imgui_SOURCE_DIR}/backends ${implot_SOURCE_DIR} ${implot3d_SOURCE_DIR})
   target_link_libraries(imgui_lib PUBLIC glfw)
   if(APPLE)
     target_link_libraries(imgui_lib PUBLIC "-framework OpenGL")

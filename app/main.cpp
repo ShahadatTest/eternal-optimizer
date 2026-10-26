@@ -5,6 +5,7 @@
 #include <imgui_impl_glfw.h>
 #include <imgui_impl_opengl3.h>
 #include <implot.h>
+#include <implot3d.h>
 
 #include <algorithm>
 #include <chrono>
@@ -93,6 +94,23 @@ const L kEvExpand = reg({"#%d 停滞したので範囲を再び広げた", "#%d 
 const L kEvRecall = reg({"#%d 記憶した良い範囲から探索を開始", "#%d started from the remembered good region"});
 const L kUseMemory = reg({"記憶を使う", "Use memory"});
 const L kSettings = reg({"設定", "Settings"});
+const L kTabOverview = reg({"概要", "Overview"});
+const L kTab3D = reg({"3D・因果", "3D & causes"});
+const L kTabLearn = reg({"学習", "Learning"});
+const L k3DTitle = reg({"3D地形（高さ＝良さ、−log10 差）・表示専用", "3D landscape (height = quality, −log10 gap), display only"});
+const L kQuality = reg({"良さ", "quality"});
+const L kHint3D = reg({"ドラッグで回転・ホイールで拡大", "Drag to rotate, scroll to zoom"});
+const L kGraphTitle = reg({"因果グラフ（太さ＝効果の強さ・橙＝組み合わせ）", "Causal graph (width = effect strength, orange = interacting pair)"});
+const L kOutcome = reg({"結果", "Outcome"});
+const L kEffect = reg({"効果/ノイズ %.3g", "effect/noise %.3g"});
+const L kStudyBars = reg({"研究ごとの最終的な良さ（−log10 差・高いほど良い）", "Final quality per study (−log10 gap, higher is better)"});
+const L kStudyCurves = reg({"研究ごとの推移（明るいほど新しい）", "Progress per study (brighter = newer)"});
+const L kBudgetPie = reg({"試行の使い道（現在の研究）", "Where the trials went (current study)"});
+const L kOverhead = reg({"研究ごとの準備コスト（初期探索＋検査の試行数）", "Setup cost per study (warm-up + screening trials)"});
+const L kWithMemory = reg({"記憶あり", "with memory"});
+const L kFresh = reg({"記憶なし", "fresh"});
+const L kNoStudies = reg({"まだ完了した研究がありません。研究を最後まで進めるか「次の研究へ」を押してください。", "No finished studies yet. Run a study to the end or press Next study."});
+const L kStudyAxis = reg({"研究", "Study"});
 const L kTabMemory = reg({"記憶", "Memory"});
 const L kTabOptimizer = reg({"最適化", "Optimizer"});
 const L kTabDisplay = reg({"表示", "Display"});
@@ -126,7 +144,7 @@ const L kStall = reg({"停滞とみなすまでの試行数", "Trials before a s
 const L kDefaults = reg({"既定値に戻す", "Restore defaults"});
 const L kApplyNow = reg({"今すぐ適用（リセット）", "Apply now (reset)"});
 const L kMemoryLine = reg({"記憶", "Memory"});
-const L kMemOn = reg({"%d 研究分・オン", "on · %d remembered"});
+const L kMemOn = reg({"%d 研究分・オン", "on (%d)"});
 const L kMemOff = reg({"オフ", "off"});
 const L kMemoryCount = reg({"記憶している研究", "Studies remembered"});
 const L kNextStudy = reg({"次の研究へ（この研究を記憶）", "Next study (remember this one)"});
@@ -211,6 +229,10 @@ static void style() {
     p.Colors[ImPlotCol_PlotBg] = {0.02f, 0.02f, 0.03f, 1};
     p.Colors[ImPlotCol_FrameBg] = {0.05f, 0.05f, 0.06f, 1};
     p.PlotPadding = {8, 8};
+    ImPlot3DStyle& q = ImPlot3D::GetStyle();
+    q.Colors[ImPlot3DCol_PlotBg] = {0.02f, 0.02f, 0.03f, 1};
+    q.Colors[ImPlot3DCol_FrameBg] = {0.05f, 0.05f, 0.06f, 1};
+    q.Colors[ImPlot3DCol_AxisGrid] = {0.30f, 0.30f, 0.34f, 1};
 }
 
 // ------------------------------------------------------------------ the running session
@@ -234,6 +256,23 @@ struct Session {
     aci::Memory memory;
     int memory_problem = -1;
     bool folded = false, show_settings = false;
+    struct StudyRec { double final_gap; int setup; bool memory; std::vector<double> curve; };
+    std::vector<StudyRec> studies;
+    bool recorded = false;
+    int tab_request = -1;
+    // the 3D landscape, cached per trial count
+    std::vector<double> l3x, l3y, l3z;
+    int l3_at = -1;
+
+    void record() {
+        if (recorded || !opt || opt->trials().empty() || gap_aci.empty()) return;
+        int setup = 0;
+        for (const auto& t : opt->trials())
+            setup += t.kind == aci::Kind::Warmup || t.kind == aci::Kind::Remeasure || t.kind == aci::Kind::Intervene ||
+                     t.kind == aci::Kind::Recall;
+        studies.push_back({gap_aci.back(), setup, opt->has_memory(), gap_aci});
+        recorded = true;
+    }
 
     const aci::Problem& P() const { return probs[problem]; }
 
@@ -283,14 +322,17 @@ struct Session {
 
     // remember this study, then start the next one with a new seed
     void next_study() {
+        record();
         fold();
         ++seed;
         reset();
     }
 
     void reset() {
-        if (memory_problem != problem) { memory_problem = problem; load_memory(); }
+        if (memory_problem != problem) { memory_problem = problem; load_memory(); studies.clear(); }
         folded = false;
+        recorded = false;
+        l3_at = -1;
         aci::RandomSearch probe(P().params, 4242);
         double m = 0, s = 0;
         std::vector<double> ys;
@@ -313,6 +355,7 @@ struct Session {
 
     void step() {
         if (done() >= budget) {
+            record();
             if (auto_remember) fold();
             if (auto_next && running) next_study();
             else running = false;
@@ -589,6 +632,240 @@ static void settings_window(Session& s) {
     ImGui::PopStyleColor();
 }
 
+// ------------------------------------------------------------------ 3D landscape
+
+static void landscape3d(Session& s, ImVec2 size) {
+    s.refresh_slice();
+    if (s.slice_i < 0) {
+        ImGui::BeginChild("##l3wait", size, ImGuiChildFlags_Borders);
+        ImGui::TextUnformatted(tr(ja::k3DTitle));
+        ImGui::TextDisabled("%s", s.opt->screened() ? tr(ja::kNeedTwo) : tr(ja::kWaiting));
+        ImGui::EndChild();
+        return;
+    }
+    const auto& P = s.P();
+    const auto& a = P.params[s.slice_i];
+    const auto& b = P.params[s.slice_j];
+    const int N = 44;
+    auto height = [&](double gap) { return -std::log10(std::max(1e-6, gap)); };
+    if (s.l3_at != s.done()) {
+        s.l3_at = s.done();
+        s.l3x.assign(N * N, 0); s.l3y.assign(N * N, 0); s.l3z.assign(N * N, 0);
+        auto x = s.opt->incumbent();
+        for (int i = 0; i < N; ++i)
+            for (int j = 0; j < N; ++j) {
+                const int k = i * N + j;
+                x[s.slice_i] = s.l3x[k] = a.lo + (a.hi - a.lo) * i / (N - 1.0);
+                x[s.slice_j] = s.l3y[k] = b.lo + (b.hi - b.lo) * j / (N - 1.0);
+                s.l3z[k] = height(P.f(x) - P.optimum);
+            }
+    }
+    const auto [zmn, zmx] = std::minmax_element(s.l3z.begin(), s.l3z.end());
+    ImGui::BeginChild("##l3", size, ImGuiChildFlags_Borders);
+    ImGui::TextUnformatted(tr(ja::k3DTitle));
+    ImGui::SameLine();
+    ImGui::TextDisabled("  %s", tr(ja::kHint3D));
+    if (ImPlot3D::BeginPlot("##landscape", ImGui::GetContentRegionAvail(), ImPlot3DFlags_NoLegend | ImPlot3DFlags_NoTitle)) {
+        ImPlot3D::SetupAxes(pname(P, s.slice_i), pname(P, s.slice_j), tr(ja::kQuality));
+        ImPlot3D::SetupAxesLimits(a.lo, a.hi, b.lo, b.hi, *zmn, *zmx + 0.25 * (*zmx - *zmn) + 1e-9, ImPlot3DCond_Always);
+        ImPlot3D::SetupBoxRotation(28, -55, false, ImPlot3DCond_Once);
+        ImPlot3D::PushColormap(ImPlot3DColormap_Greys);
+        ImPlot3D::PlotSurface("##surface", s.l3x.data(), s.l3y.data(), s.l3z.data(), N, N, *zmn, *zmx,
+                              ImPlot3DSurfaceFlags_NoMarkers);
+        ImPlot3D::PopColormap();
+        for (int k : {0, 1, 2, 3, 4, 5, 7}) {
+            std::vector<double> tx, ty, tz;
+            for (const auto& tr_ : s.opt->trials())
+                if ((int)tr_.kind == k) {
+                    tx.push_back(tr_.x[s.slice_i]); ty.push_back(tr_.x[s.slice_j]);
+                    tz.push_back(std::clamp(height(P.f(tr_.x) - P.optimum), *zmn, *zmx + 0.25 * (*zmx - *zmn)));
+                }
+            if (tx.empty()) continue;
+            ImPlot3D::SetNextMarkerStyle(ImPlot3DMarker_Circle, 3.0f, kKindColor[k], 0.0f);
+            ImPlot3D::PlotScatter("##kind", tx.data(), ty.data(), tz.data(), (int)tx.size());
+        }
+        const auto& inc = s.opt->incumbent();
+        double ix = inc[s.slice_i], iy = inc[s.slice_j], iz = std::clamp(height(P.f(inc) - P.optimum), *zmn, *zmx + 0.25 * (*zmx - *zmn));
+        ImPlot3D::SetNextMarkerStyle(ImPlot3DMarker_Diamond, 9.0f, {1, 1, 1, 1}, 1.5f, {0, 0, 0, 1});
+        ImPlot3D::PlotScatter("##best", &ix, &iy, &iz, 1);
+        ImPlot3D::EndPlot();
+    }
+    ImGui::EndChild();
+}
+
+// ------------------------------------------------------------------ causal graph
+
+static void causal_graph(Session& s, ImVec2 size) {
+    ImGui::BeginChild("##graph", size, ImGuiChildFlags_Borders);
+    ImGui::TextUnformatted(tr(ja::kGraphTitle));
+    const auto& P = s.P();
+    const int d = (int)P.params.size();
+    ImDrawList* dl = ImGui::GetWindowDrawList();
+    const ImVec2 o = ImGui::GetCursorScreenPos(), av = ImGui::GetContentRegionAvail();
+    const float row = av.y / d, bw = std::min(280.0f, av.x * 0.46f), bh = std::min(54.0f, row * 0.8f);
+    const float lx = o.x + 64, ox = o.x + av.x - 150, oy = o.y + av.y * 0.5f;
+    auto knob = [&](int i) { return ImVec2(lx, o.y + row * (i + 0.5f)); };
+    const ImU32 white = IM_COL32(240, 240, 244, 255), grey = IM_COL32(80, 80, 88, 255), dim = IM_COL32(120, 120, 128, 255);
+
+    // interacting pairs: arcs on the left
+    for (const auto& pr : s.opt->pair_rules(3)) {
+        if (pr.z <= 0) continue;
+        const ImVec2 a = knob(pr.pi), b = knob(pr.pj);
+        const float bulge = 22 + 10 * std::abs(pr.pi - pr.pj);
+        const int alpha = (int)std::clamp(90 + 60 * pr.z, 90.0, 240.0);
+        dl->AddBezierCubic(a, {a.x - bulge, a.y}, {b.x - bulge, b.y}, b, IM_COL32(255, 153, 51, alpha), 1.5f + std::min(3.0f, (float)pr.z));
+    }
+    // edges to the outcome
+    for (int i = 0; i < d; ++i) {
+        const auto& v = s.opt->verdicts()[i];
+        const ImVec2 a = {knob(i).x + bw, knob(i).y}, b = {ox, oy};
+        const ImVec2 c1 = {a.x + (b.x - a.x) * 0.5f, a.y}, c2 = {a.x + (b.x - a.x) * 0.5f, b.y};
+        if (v.tested && v.cause) {
+            const float w = 1.5f + 5.0f * std::clamp((float)std::log10(std::max(1.0, v.snr)) / 6.0f, 0.0f, 1.0f);
+            dl->AddBezierCubic(a, c1, c2, b, white, w);
+        } else {
+            // dashed: sample the curve and draw every other piece
+            ImVec2 prev = a;
+            for (int k = 1; k <= 40; ++k) {
+                const float t = k / 40.0f, u = 1 - t;
+                const ImVec2 q = {u * u * u * a.x + 3 * u * u * t * c1.x + 3 * u * t * t * c2.x + t * t * t * b.x,
+                                  u * u * u * a.y + 3 * u * u * t * c1.y + 3 * u * t * t * c2.y + t * t * t * b.y};
+                if (k % 2) dl->AddLine(prev, q, v.tested ? grey : IM_COL32(60, 60, 66, 255), 1.2f);
+                prev = q;
+            }
+        }
+    }
+    // knob nodes
+    for (int i = 0; i < d; ++i) {
+        const auto& v = s.opt->verdicts()[i];
+        const ImVec2 c = knob(i), tl = {c.x, c.y - bh / 2}, br = {c.x + bw, c.y + bh / 2};
+        const bool cause = v.tested && v.cause;
+        dl->AddRectFilled(tl, br, cause ? IM_COL32(28, 28, 32, 255) : IM_COL32(14, 14, 16, 255), 4);
+        dl->AddRect(tl, br, cause ? white : grey, 4, 0, cause ? 1.5f : 1.0f);
+        const float fh = ImGui::GetFontSize();
+        const bool two = v.tested && bh >= 2 * fh + 6;
+        dl->AddText({tl.x + 10, two ? c.y - fh - 1 : c.y - fh * 0.5f}, cause ? white : dim, pname(P, i));
+        if (two) {
+            char buf[64];
+            if (cause) std::snprintf(buf, sizeof buf, tr(ja::kEffect), v.snr);
+            dl->AddText({tl.x + 10, c.y + 1}, cause ? IM_COL32(150, 150, 158, 255) : grey, cause ? buf : tr(ja::kFrozen));
+        }
+    }
+    // the outcome
+    const ImVec2 otl = {ox, oy - 34}, obr = {ox + 140, oy + 34};
+    dl->AddRectFilled(otl, obr, white, 6);
+    const char* oname = tr(ja::kOutcome);
+    const ImVec2 osz = ImGui::CalcTextSize(oname);
+    dl->AddText({ox + 70 - osz.x / 2, oy - osz.y - 2}, IM_COL32(0, 0, 0, 255), oname);
+    char best[48];
+    std::snprintf(best, sizeof best, "%.5g", s.opt->trials().empty() ? 0.0 : P.f(s.opt->incumbent()));
+    const ImVec2 bsz = ImGui::CalcTextSize(best);
+    dl->AddText({ox + 70 - bsz.x / 2, oy + 2}, IM_COL32(0, 0, 0, 255), best);
+    ImGui::Dummy(av);
+    ImGui::EndChild();
+}
+
+// ------------------------------------------------------------------ learning across studies
+
+static void study_bars(Session& s, ImVec2 size) {
+    if (s.studies.empty()) {
+        ImGui::BeginChild("##sbw", size, ImGuiChildFlags_Borders);
+        ImGui::TextUnformatted(tr(ja::kStudyBars));
+        ImGui::TextWrapped("%s", tr(ja::kNoStudies));
+        ImGui::EndChild();
+        return;
+    }
+    if (ImPlot::BeginPlot(tr(ja::kStudyBars), size)) {
+        ImPlot::SetupAxes(tr(ja::kStudyAxis), nullptr, ImPlotAxisFlags_AutoFit, ImPlotAxisFlags_AutoFit);
+        ImPlot::SetupAxisFormat(ImAxis_X1, "%.0f");
+        ImPlot::SetupAxisTicks(ImAxis_X1, 1, (double)s.studies.size(), (int)s.studies.size());
+        ImPlot::SetupLegend(ImPlotLocation_NorthEast);
+        std::vector<double> xm, ym, xf, yf;
+        for (int i = 0; i < (int)s.studies.size(); ++i)
+            (s.studies[i].memory ? xm : xf).push_back(i + 1), (s.studies[i].memory ? ym : yf).push_back(-std::log10(std::max(1e-6, s.studies[i].final_gap)));
+        ImPlot::SetNextFillStyle({0.45f, 0.45f, 0.5f, 1});
+        if (!xf.empty()) ImPlot::PlotBars(tr(ja::kFresh), xf.data(), yf.data(), (int)xf.size(), 0.6);
+        ImPlot::SetNextFillStyle({0.95f, 0.95f, 0.97f, 1});
+        if (!xm.empty()) ImPlot::PlotBars(tr(ja::kWithMemory), xm.data(), ym.data(), (int)xm.size(), 0.6);
+        ImPlot::EndPlot();
+    }
+}
+
+static void study_curves(Session& s, ImVec2 size) {
+    if (ImPlot::BeginPlot(tr(ja::kStudyCurves), size, ImPlotFlags_NoLegend)) {
+        ImPlot::SetupAxes(tr(ja::kTrialAxis), nullptr, ImPlotAxisFlags_AutoFit, ImPlotAxisFlags_AutoFit);
+        ImPlot::SetupAxisScale(ImAxis_Y1, ImPlotScale_Log10);
+        const int n = (int)s.studies.size();
+        for (int i = 0; i < n; ++i) {
+            const auto& c = s.studies[i].curve;
+            std::vector<double> x(c.size());
+            for (size_t k = 0; k < c.size(); ++k) x[k] = k + 1;
+            const float light = 0.25f + 0.75f * (i + 1.0f) / n;
+            ImPlot::SetNextLineStyle({light, light, light, 0.9f}, i == n - 1 ? 2.5f : 1.5f);
+            ImPlot::PlotLine("##c", x.data(), c.data(), (int)c.size());
+        }
+        if (!s.xs.empty() && !s.recorded) {   // the study in progress, in its kind colour for memory
+            ImPlot::SetNextLineStyle(kKindColor[7], 2.0f);
+            ImPlot::PlotLine("##now", s.xs.data(), s.gap_aci.data(), (int)s.xs.size());
+        }
+        ImPlot::EndPlot();
+    }
+}
+
+static void budget_pie(Session& s, ImVec2 size) {
+    if (ImPlot::BeginPlot(tr(ja::kBudgetPie), size, ImPlotFlags_Equal | ImPlotFlags_NoMouseText)) {
+        ImPlot::SetupAxes(nullptr, nullptr, ImPlotAxisFlags_NoDecorations, ImPlotAxisFlags_NoDecorations);
+        ImPlot::SetupAxesLimits(0, 1, 0, 1, ImPlotCond_Always);
+        ImPlot::SetupLegend(ImPlotLocation_East, ImPlotLegendFlags_Outside);
+        std::vector<const char*> labels;
+        std::vector<double> vals;
+        std::vector<ImVec4> cols;
+        std::vector<int> kinds;
+        for (int k : {0, 7, 1, 2, 3, 4, 5}) {
+            int n = 0;
+            for (const auto& t : s.opt->trials()) n += (int)t.kind == k;
+            if (!n) continue;
+            labels.push_back(tr(ja::kKindNames[k]));
+            vals.push_back(n);
+            cols.push_back(kKindColor[k]);
+            kinds.push_back(k);
+        }
+        if (!vals.empty()) {
+            static ImPlotColormap cmap = -1;
+            static std::vector<int> last;
+            if (kinds != last) {   // a colormap matching the kinds shown
+                last = kinds;
+                char name[32];
+                static int counter = 0;
+                std::snprintf(name, sizeof name, "kinds%d", counter++);
+                cmap = cols.size() > 1 ? ImPlot::AddColormap(name, cols.data(), (int)cols.size(), true) : -1;
+            }
+            if (cmap >= 0) ImPlot::PushColormap(cmap);
+            else ImPlot::SetNextFillStyle(cols[0]);
+            ImPlot::PlotPieChart(labels.data(), vals.data(), (int)vals.size(), 0.5, 0.5, 0.42, "%.0f", 90);
+            if (cmap >= 0) ImPlot::PopColormap();
+        }
+        ImPlot::EndPlot();
+    }
+}
+
+static void overhead_bars(Session& s, ImVec2 size) {
+    if (ImPlot::BeginPlot(tr(ja::kOverhead), size)) {
+        ImPlot::SetupAxes(tr(ja::kStudyAxis), tr(ja::kTrialAxis), ImPlotAxisFlags_AutoFit, ImPlotAxisFlags_AutoFit);
+        ImPlot::SetupAxisFormat(ImAxis_X1, "%.0f");
+        if (!s.studies.empty()) ImPlot::SetupAxisTicks(ImAxis_X1, 1, (double)s.studies.size(), (int)s.studies.size());
+        ImPlot::SetupLegend(ImPlotLocation_NorthEast);
+        std::vector<double> xm, ym, xf, yf;
+        for (int i = 0; i < (int)s.studies.size(); ++i)
+            (s.studies[i].memory ? xm : xf).push_back(i + 1), (s.studies[i].memory ? ym : yf).push_back(s.studies[i].setup);
+        ImPlot::SetNextFillStyle({0.45f, 0.45f, 0.5f, 1});
+        if (!xf.empty()) ImPlot::PlotBars(tr(ja::kFresh), xf.data(), yf.data(), (int)xf.size(), 0.6);
+        ImPlot::SetNextFillStyle({0.95f, 0.95f, 0.97f, 1});
+        if (!xm.empty()) ImPlot::PlotBars(tr(ja::kWithMemory), xm.data(), ym.data(), (int)xm.size(), 0.6);
+        ImPlot::EndPlot();
+    }
+}
+
 static void history_plot(Session& s, ImVec2 size) {
     if (ImPlot::BeginPlot(tr(ja::kHistory), size)) {
         ImPlot::SetupAxes(tr(ja::kTrialAxis), nullptr, ImPlotAxisFlags_AutoFit, ImPlotAxisFlags_AutoFit);
@@ -778,7 +1055,7 @@ int main(int argc, char** argv) {
     std::string capture;
     int cap_steps = 250, cap_problem = 0;
     float cap_noise = 0.0f;
-    int cap_settings = 0;
+    int cap_settings = 0, cap_tab = 0, cap_studies = 1;
     for (int i = 1; i + 1 < argc; ++i) {
         const std::string a = argv[i];
         if (a == "--capture") capture = argv[++i];
@@ -787,6 +1064,8 @@ int main(int argc, char** argv) {
         else if (a == "--noise") cap_noise = (float)std::atof(argv[++i]);
         else if (a == "--lang") g_en = std::string(argv[++i]) == "en";
         else if (a == "--settings") cap_settings = std::atoi(argv[++i]);
+        else if (a == "--tab") cap_tab = std::atoi(argv[++i]);
+        else if (a == "--studies") cap_studies = std::atoi(argv[++i]);
     }
     if (!glfwInit()) return 1;
     if (!capture.empty()) glfwWindowHint(GLFW_VISIBLE, GLFW_FALSE);
@@ -802,6 +1081,7 @@ int main(int argc, char** argv) {
     IMGUI_CHECKVERSION();
     ImGui::CreateContext();
     ImPlot::CreateContext();
+    ImPlot3D::CreateContext();
     ImGui::GetIO().IniFilename = nullptr;
     float sx = 1, sy = 1;
     glfwGetWindowContentScale(win, &sx, &sy);
@@ -811,9 +1091,19 @@ int main(int argc, char** argv) {
     style();
     ImGui_ImplGlfw_InitForOpenGL(win, true);
     ImGui_ImplOpenGL3_Init("#version 150");
-    if (!capture.empty()) { s.problem = cap_problem; s.noise = cap_noise; s.budget = std::max(s.budget, cap_steps); }
+    if (!capture.empty()) { s.problem = cap_problem; s.noise = cap_noise; s.budget = cap_steps; s.persist = false; }
     s.reset();
-    if (!capture.empty()) { s.persist = false; s.memory = {}; for (int i = 0; i < cap_steps; ++i) s.step(); s.fold(); s.show_settings = cap_settings != 0; }
+    if (!capture.empty()) {
+        s.persist = false; s.memory = {};
+        for (int k = 0; k < cap_studies; ++k) {
+            if (k) s.next_study();
+            for (int i = 0; i < cap_steps; ++i) s.step();
+        }
+        if (cap_studies > 1) s.record();
+        s.fold();
+        s.show_settings = cap_settings != 0;
+        s.tab_request = cap_tab;
+    }
     int frames = 0;
 
     auto last = std::chrono::steady_clock::now();
@@ -840,11 +1130,33 @@ int main(int argc, char** argv) {
         ImGui::EndChild();
         ImGui::SameLine();
         ImGui::BeginChild("##right", {0, 0});
-        const ImVec2 avail = ImGui::GetContentRegionAvail();
-        const float W = (avail.x - 8) / 2, H = (avail.y - 16) / 3;
-        history_plot(s, {W, H});      ImGui::SameLine(); screening_plot(s, {W, H});
-        slice_plot(s, {W, H});        ImGui::SameLine(); rules_table(s, {W, H});
-        parallel_plot(s, {W, H});     ImGui::SameLine(); drives_plot(s, {W, H});
+        if (ImGui::BeginTabBar("##views")) {
+            const char* names[3] = {tr(ja::kTabOverview), tr(ja::kTab3D), tr(ja::kTabLearn)};
+            for (int v = 0; v < 3; ++v) {
+                const ImGuiTabItemFlags f = s.tab_request == v ? ImGuiTabItemFlags_SetSelected : 0;
+                std::string id = std::string(names[v]) + "###view" + std::to_string(v);
+                if (!ImGui::BeginTabItem(id.c_str(), nullptr, f)) continue;
+                const ImVec2 avail = ImGui::GetContentRegionAvail();
+                const float W = (avail.x - 8) / 2;
+                if (v == 0) {
+                    const float H = (avail.y - 16) / 3;
+                    history_plot(s, {W, H});      ImGui::SameLine(); screening_plot(s, {W, H});
+                    slice_plot(s, {W, H});        ImGui::SameLine(); rules_table(s, {W, H});
+                    parallel_plot(s, {W, H});     ImGui::SameLine(); drives_plot(s, {W, H});
+                } else if (v == 1) {
+                    landscape3d(s, {avail.x * 0.58f, avail.y});
+                    ImGui::SameLine();
+                    causal_graph(s, {0, avail.y});
+                } else {
+                    const float H = (avail.y - 8) / 2;
+                    study_bars(s, {W, H});   ImGui::SameLine(); study_curves(s, {W, H});
+                    budget_pie(s, {W, H});   ImGui::SameLine(); overhead_bars(s, {W, H});
+                }
+                ImGui::EndTabItem();
+            }
+            s.tab_request = -1;
+            ImGui::EndTabBar();
+        }
         ImGui::EndChild();
         ImGui::End();
         settings_window(s);
@@ -871,6 +1183,7 @@ int main(int argc, char** argv) {
     }
     ImGui_ImplOpenGL3_Shutdown();
     ImGui_ImplGlfw_Shutdown();
+    ImPlot3D::DestroyContext();
     ImPlot::DestroyContext();
     ImGui::DestroyContext();
     glfwDestroyWindow(win);
