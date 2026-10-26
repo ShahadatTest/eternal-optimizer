@@ -1,0 +1,279 @@
+{
+ "budget": 60,
+ "default_ms": 67.698,
+ "runs": [
+  {
+   "seed": 7,
+   "eternal_ms": 8.517,
+   "random_ms": 8.438,
+   "eternal_trials_to_goal": 5,
+   "random_trials_to_goal": 8,
+   "status": {
+    "best": 8.504,
+    "best_params": {
+     "color": 0.03344829567856636,
+     "label": 37.36808933770664,
+     "order": 1.535363636050117,
+     "tile": 172.0,
+     "unroll": 1.3025485772908847
+    },
+    "causes": [
+     {
+      "effect_over_noise": 176.96734504456404,
+      "name": "tile"
+     },
+     {
+      "effect_over_noise": 17947.61522221977,
+      "name": "order"
+     }
+    ],
+    "curiosity": 0.00047637994679407194,
+    "events": [
+     "#30 『unroll』は原因ではない → 固定",
+     "#30 『color』は原因ではない → 固定",
+     "#30 『label』は原因ではない → 固定"
+    ],
+    "exploration_rate": 0.15038771545699958,
+    "frozen_as_irrelevant": [
+     {
+      "effect_over_noise": 0.7137183894182201,
+      "name": "unroll"
+     },
+     {
+      "effect_over_noise": 1.1837280604986267,
+      "name": "color"
+     },
+     {
+      "effect_over_noise": 1.479660075623585,
+      "name": "label"
+     }
+    ],
+    "noise_estimate": 0.019148542155126572,
+    "pair_rules": [
+     {
+      "pair": [
+       "tile",
+       "order"
+      ],
+      "success_rate": 0.5,
+      "z": 0.0
+     }
+    ],
+    "rules": [
+     {
+      "evidence": 7.964418200151136,
+      "name": "tile",
+      "range": [
+       172.0,
+       214.0
+      ],
+      "success_rate": 0.38048198303061403,
+      "z": 0.3702104807351161
+     },
+     {
+      "evidence": 29.44500919133911,
+      "name": "order",
+      "range": [
+       0.9998333333333332,
+       1.9996666666666665
+      ],
+      "success_rate": 0.37741585546343037,
+      "z": 0.6333528070335195
+     }
+    ],
+    "trial_kinds": {
+     "介入": 15,
+     "再測定": 5,
+     "初期探索": 10,
+     "局所探索": 11,
+     "探索": 10,
+     "活用": 9
+    },
+    "trials": 60,
+    "untested": []
+   }
+  },
+  {
+   "seed": 8,
+   "eternal_ms": 8.732,
+   "random_ms": 8.833,
+   "eternal_trials_to_goal": 44,
+   "random_trials_to_goal": 30,
+   "status": {
+    "best": 8.737,
+    "best_params": {
+     "color": 0.21345336361312606,
+     "label": 60.42346494947135,
+     "order": 1.2135924408556384,
+     "tile": 156.21949088188524,
+     "unroll": 5.444034319659411
+    },
+    "causes": [
+     {
+      "effect_over_noise": 280.28085092435515,
+      "name": "tile"
+     },
+     {
+      "effect_over_noise": 28643.12094649586,
+      "name": "order"
+     }
+    ],
+    "curiosity": 0.0009393651517128129,
+    "events": [
+     "#30 『unroll』は原因ではない → 固定",
+     "#30 『color』は原因ではない → 固定",
+     "#30 『label』は原因ではない → 固定"
+    ],
+    "exploration_rate": 0.1505525093324804,
+    "frozen_as_irrelevant": [
+     {
+      "effect_over_noise": 0.47460539196995055,
+      "name": "unroll"
+     },
+     {
+      "effect_over_noise": 3.0058341491418337,
+      "name": "color"
+     },
+     {
+      "effect_over_noise": 2.689430554495325,
+      "name": "label"
+     }
+    ],
+    "noise_estimate": 0.009481561052907006,
+    "pair_rules": [
+     {
+      "pair": [
+       "tile",
+       "order"
+      ],
+      "success_rate": 0.5079737051337972,
+      "z": 0.026012094085260933
+     }
+    ],
+    "rules": [
+     {
+      "evidence": 30.387642234101904,
+      "name": "tile",
+      "range": [
+       130.0,
+       172.0
+      ],
+      "success_rate": 0.35300325574172164,
+      "z": 0.3698138506779248
+     },
+     {
+      "evidence": 27.697491018413416,
+      "name": "order",
+      "range": [
+       0.9998333333333332,
+       1.9996666666666665
+      ],
+      "success_rate": 0.38498010311198544,
+      "z": 0.4874403491335009
+     }
+    ],
+    "trial_kinds": {
+     "介入": 15,
+     "再測定": 5,
+     "初期探索": 10,
+     "局所探索": 12,
+     "探索": 5,
+     "活用": 13
+    },
+    "trials": 60,
+    "untested": []
+   }
+  },
+  {
+   "seed": 9,
+   "eternal_ms": 9.402,
+   "random_ms": 9.076,
+   "eternal_trials_to_goal": 16,
+   "random_trials_to_goal": 13,
+   "status": {
+    "best": 9.413,
+    "best_params": {
+     "color": 0.6820673823075055,
+     "label": 25.22675642898056,
+     "order": 4.154220431738212,
+     "tile": 152.01524949546385,
+     "unroll": 4.949284904345465
+    },
+    "causes": [
+     {
+      "effect_over_noise": 124.03706806684482,
+      "name": "tile"
+     },
+     {
+      "effect_over_noise": 3617.399847391757,
+      "name": "order"
+     }
+    ],
+    "curiosity": 0.00034513177092430165,
+    "events": [
+     "#30 『unroll』は原因ではない → 固定",
+     "#30 『color』は原因ではない → 固定",
+     "#30 『label』は原因ではない → 固定"
+    ],
+    "exploration_rate": 0.1502029972306546,
+    "frozen_as_irrelevant": [
+     {
+      "effect_over_noise": 0.6791727515321307,
+      "name": "unroll"
+     },
+     {
+      "effect_over_noise": 1.5344273275354952,
+      "name": "color"
+     },
+     {
+      "effect_over_noise": 0.8049454832973103,
+      "name": "label"
+     }
+    ],
+    "noise_estimate": 0.03975424505634586,
+    "pair_rules": [
+     {
+      "pair": [
+       "tile",
+       "order"
+      ],
+      "success_rate": 0.7517295950839212,
+      "z": 0.2337810085061821
+     }
+    ],
+    "rules": [
+     {
+      "evidence": 15.939515296128587,
+      "name": "tile",
+      "range": [
+       130.0,
+       172.0
+      ],
+      "success_rate": 0.4886271882975897,
+      "z": 0.35041127369876796
+     },
+     {
+      "evidence": 18.99683077235313,
+      "name": "order",
+      "range": [
+       3.999333333333333,
+       4.9991666666666665
+      ],
+      "success_rate": 0.5728257115938028,
+      "z": 1.3751807743245357
+     }
+    ],
+    "trial_kinds": {
+     "介入": 15,
+     "再測定": 5,
+     "初期探索": 10,
+     "局所探索": 14,
+     "探索": 5,
+     "活用": 11
+    },
+    "trials": 60,
+    "untested": []
+   }
+  }
+ ]
+}

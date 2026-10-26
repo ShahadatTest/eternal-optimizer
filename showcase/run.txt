@@ -1,0 +1,83 @@
+対象：512×512 行列積の実測時間。つまみ5つ（うち2つは何もしない）。予算 60 試行 × シード 3。
+
+MCP 接続: eternal 0.1.0  ツール: ['create_study', 'ask', 'tell', 'status', 'list_problems', 'benchmark']
+#  1 初期探索  tile= 194.1 order=kji unroll= 1.8 color=0.89 label= 14.1  →   366.65 ms
+#  2 初期探索  tile=  17.9 order=kij unroll= 7.3 color=0.26 label= 71.8  →    12.40 ms
+#  3 初期探索  tile= 194.4 order=jki unroll= 3.8 color=0.31 label= 83.2  →   369.94 ms
+#  4 初期探索  tile=  80.6 order=kji unroll= 8.0 color=0.87 label= 26.8  →   227.32 ms
+#  5 初期探索  tile= 160.4 order=ikj unroll= 1.3 color=0.03 label= 12.4  →     8.68 ms
+#  6 初期探索  tile=  46.5 order=jik unroll= 3.3 color=0.67 label= 64.2  →    38.82 ms
+#  7 初期探索  tile= 130.0 order=ijk unroll= 2.9 color=0.70 label= 43.4  →    73.06 ms
+#  8 初期探索  tile= 230.7 order=kij unroll= 3.0 color=0.16 label= 78.5  →    10.13 ms
+#  9 初期探索  tile=  40.3 order=jki unroll= 5.2 color=0.35 label=  4.2  →   139.75 ms
+# 10 初期探索  tile= 147.7 order=ikj unroll= 1.9 color=0.65 label= 96.6  →     8.89 ms
+# 11 再測定   tile= 160.4 order=ikj unroll= 1.3 color=0.03 label= 12.4  →     8.68 ms
+# 12 再測定   tile= 160.4 order=ikj unroll= 1.3 color=0.03 label= 12.4  →     8.66 ms
+# 13 再測定   tile= 160.4 order=ikj unroll= 1.3 color=0.03 label= 12.4  →     8.71 ms
+# 14 再測定   tile= 160.4 order=ikj unroll= 1.3 color=0.03 label= 12.4  →     8.70 ms
+# 15 再測定   tile= 160.4 order=ikj unroll= 1.3 color=0.03 label= 12.4  →     8.67 ms
+# 16 介入    tile= 223.4 order=ikj unroll= 1.3 color=0.03 label= 12.4  →    11.17 ms
+# 17 介入    tile=  97.4 order=ikj unroll= 1.3 color=0.03 label= 12.4  →    11.67 ms
+# 18 介入    tile=  53.3 order=ikj unroll= 1.3 color=0.03 label= 12.4  →    12.07 ms
+# 19 介入    tile= 160.4 order=jki unroll= 1.3 color=0.03 label= 12.4  →   352.35 ms
+# 20 介入    tile= 160.4 order=ijk unroll= 1.3 color=0.03 label= 12.4  →    82.87 ms
+# 21 介入    tile= 160.4 order=jki unroll= 1.3 color=0.03 label= 12.4  →   351.64 ms
+# 22 介入    tile= 160.4 order=ikj unroll= 3.1 color=0.03 label= 12.4  →     8.70 ms
+# 23 介入    tile= 160.4 order=ikj unroll= 3.1 color=0.03 label= 12.4  →     8.69 ms
+# 24 介入    tile= 160.4 order=ikj unroll= 4.9 color=0.03 label= 12.4  →     8.70 ms
+# 25 介入    tile= 160.4 order=ikj unroll= 1.3 color=0.28 label= 12.4  →     8.69 ms
+# 26 介入    tile= 160.4 order=ikj unroll= 1.3 color=0.28 label= 12.4  →     8.71 ms
+# 27 介入    tile= 160.4 order=ikj unroll= 1.3 color=0.66 label= 12.4  →     8.70 ms
+# 28 介入    tile= 160.4 order=ikj unroll= 1.3 color=0.03 label= 37.4  →     8.70 ms
+# 29 介入    tile= 160.4 order=ikj unroll= 1.3 color=0.03 label= 37.4  →     8.65 ms
+# 30 介入    tile= 160.4 order=ikj unroll= 1.3 color=0.03 label= 29.7  →     8.68 ms
+# 31 局所探索  tile= 166.5 order=ikj unroll= 1.3 color=0.03 label= 37.4  →    10.17 ms
+# 32 局所探索  tile= 194.6 order=ikj unroll= 1.3 color=0.03 label= 37.4  →    11.18 ms
+# 33 局所探索  tile= 149.4 order=ikj unroll= 1.3 color=0.03 label= 37.4  →    10.80 ms
+# 34 探索    tile= 105.6 order=ikj unroll= 1.3 color=0.03 label= 37.4  →    10.62 ms
+# 35 局所探索  tile= 154.8 order=ikj unroll= 1.3 color=0.03 label= 37.4  →    10.86 ms
+# 36 探索    tile= 189.5 order=ikj unroll= 1.3 color=0.03 label= 37.4  →    10.42 ms
+# 37 局所探索  tile= 197.1 order=jik unroll= 1.3 color=0.03 label= 37.4  →    85.62 ms
+# 38 探索    tile=  52.8 order=ikj unroll= 1.3 color=0.03 label= 37.4  →    12.07 ms
+# 39 活用    tile= 160.6 order=ikj unroll= 1.3 color=0.03 label= 37.4  →    10.82 ms
+# 40 活用    tile= 150.1 order=ikj unroll= 1.3 color=0.03 label= 37.4  →     9.96 ms
+# 41 探索    tile= 158.6 order=kij unroll= 1.3 color=0.03 label= 37.4  →    11.15 ms
+# 42 活用    tile= 160.5 order=ikj unroll= 1.3 color=0.03 label= 37.4  →    10.84 ms
+# 43 探索    tile= 158.8 order=jki unroll= 1.3 color=0.03 label= 37.4  →   348.25 ms
+# 44 探索    tile=  79.0 order=ikj unroll= 1.3 color=0.03 label= 37.4  →    12.52 ms
+# 45 活用    tile= 151.3 order=ikj unroll= 1.3 color=0.03 label= 37.4  →    10.94 ms
+# 46 活用    tile= 172.0 order=ikj unroll= 1.3 color=0.03 label= 37.4  →     9.07 ms
+# 47 局所探索  tile= 138.2 order=ijk unroll= 1.3 color=0.03 label= 37.4  →    85.11 ms
+# 48 探索    tile= 151.8 order=kij unroll= 1.3 color=0.03 label= 37.4  →     9.61 ms
+# 49 探索    tile= 247.8 order=ikj unroll= 1.3 color=0.03 label= 37.4  →     8.72 ms
+# 50 局所探索  tile= 167.5 order=jik unroll= 1.3 color=0.03 label= 37.4  →    84.65 ms
+# 51 探索    tile=  19.7 order=kji unroll= 1.3 color=0.03 label= 37.4  →    35.87 ms
+# 52 活用    tile= 172.0 order=ikj unroll= 1.3 color=0.03 label= 37.4  →     8.50 ms
+# 53 活用    tile= 172.0 order=ikj unroll= 1.3 color=0.03 label= 37.4  →     8.55 ms
+# 54 活用    tile= 161.3 order=ikj unroll= 1.3 color=0.03 label= 37.4  →    10.86 ms
+# 55 局所探索  tile= 172.1 order=ikj unroll= 1.3 color=0.03 label= 37.4  →     8.53 ms
+# 56 活用    tile= 189.2 order=ijk unroll= 1.3 color=0.03 label= 37.4  →    86.29 ms
+# 57 局所探索  tile= 161.7 order=ikj unroll= 1.3 color=0.03 label= 37.4  →    10.00 ms
+# 58 探索    tile=  56.4 order=kji unroll= 1.3 color=0.03 label= 37.4  →    48.41 ms
+# 59 局所探索  tile= 159.7 order=ikj unroll= 1.3 color=0.03 label= 37.4  →     8.69 ms
+# 60 局所探索  tile= 170.2 order=ikj unroll= 1.3 color=0.03 label= 37.4  →    10.34 ms
+
+── 結果（最良設定を各5回再計測した中央値）──
+教科書どおりの設定（tile=64, ijk, 展開なし）：67.70 ms
+
+シード   永遠の最良   ランダムの最良   最良の10%以内に届いた試行（永遠 / ランダム）
+   7       8.52 ms         8.44 ms           5 / 8
+   8       8.73 ms         8.83 ms          44 / 30
+   9       9.40 ms         9.08 ms          16 / 13
+
+永遠の最良（中央値）は教科書設定の 7.8 倍速
+
+── 永遠が判定したこと（各シード）──
+シード 7：原因 = tile, order  ／  無関係として固定 = unroll, color, label
+シード 8：原因 = tile, order  ／  無関係として固定 = unroll, color, label
+シード 9：原因 = tile, order  ／  無関係として固定 = unroll, color, label
+
+出来事（シード 7）：
+   #30 『unroll』は原因ではない → 固定
+   #30 『color』は原因ではない → 固定
+   #30 『label』は原因ではない → 固定

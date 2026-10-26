@@ -1,0 +1,6 @@
+build/
+build-core/
+build-config.log
+build-err.log
+.DS_Store
+__pycache__/

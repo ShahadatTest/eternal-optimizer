@@ -1,0 +1,8 @@
+{
+  "mcpServers": {
+    "eternal": {
+      "command": "./build/eternal_mcp",
+      "args": []
+    }
+  }
+}
