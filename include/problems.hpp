@@ -14,8 +14,10 @@
 namespace aci {
 
 struct Problem {
-    std::string name;        // shown in the app
+    std::string name;        // shown in the app (Japanese)
     std::string blurb;
+    std::string name_en, blurb_en;
+    std::vector<std::string> param_en;   // English parameter names, same order as params
     std::vector<Param> params;
     std::vector<bool> relevant;
     double optimum;
@@ -34,6 +36,10 @@ inline std::vector<Problem> problems() {
         p.params = {{"茹で時間 (秒)", 60, 300}, {"スープ温度 (℃)", 60, 99}, {"塩分 (g)", 2, 12},
                     {"背脂 (ml)", 0, 30}, {"チャーシューの厚さ (mm)", 2, 15},
                     {"外の気温 (℃)", -5, 35}, {"曜日", 0, 7}, {"店主の機嫌", 0, 10}};
+        p.name_en = "Ramen taste";
+        p.blurb_en = "A hidden taste function. Three of the eight knobs have nothing to do with taste.";
+        p.param_en = {"Boil time (s)", "Soup temperature (°C)", "Salt (g)", "Back fat (ml)", "Chashu thickness (mm)",
+                      "Outside temperature (°C)", "Day of week", "Owner's mood"};
         p.relevant = {true, true, true, true, true, false, false, false};
         p.optimum = -100.0;
         auto ps = p.params;
@@ -53,6 +59,10 @@ inline std::vector<Problem> problems() {
         p.blurb = "定番の2次元関数に、効かない次元を6つ足したもの。";
         p.params = {{"x1", -5, 10}, {"x2", 0, 15}};
         for (int i = 1; i <= 6; ++i) p.params.push_back({"ダミー" + std::to_string(i), 0, 1});
+        p.name_en = "Branin + 6 decoy dimensions";
+        p.blurb_en = "The classic 2-D test function, plus six dimensions that do nothing.";
+        p.param_en = {"x1", "x2"};
+        for (int i = 1; i <= 6; ++i) p.param_en.push_back("decoy " + std::to_string(i));
         p.relevant = {true, true, false, false, false, false, false, false};
         p.optimum = 0.397887357729738;
         p.f = [](const std::vector<double>& x) {
@@ -66,6 +76,9 @@ inline std::vector<Problem> problems() {
         p.name = "ハルトマン6";
         p.blurb = "6次元・多峰性の定番テスト関数。";
         for (int i = 1; i <= 6; ++i) p.params.push_back({"x" + std::to_string(i), 0, 1});
+        p.name_en = "Hartmann-6";
+        p.blurb_en = "A classic 6-D test function with several peaks.";
+        for (int i = 1; i <= 6; ++i) p.param_en.push_back("x" + std::to_string(i));
         p.relevant.assign(6, true);
         p.optimum = -3.32236801141551;
         p.f = [](const std::vector<double>& x) {
@@ -89,6 +102,9 @@ inline std::vector<Problem> problems() {
         p.name = "ローゼンブロック4";
         p.blurb = "細く曲がった谷。どの変数も効くが、互いに強く絡む。";
         for (int i = 1; i <= 4; ++i) p.params.push_back({"x" + std::to_string(i), -2, 2});
+        p.name_en = "Rosenbrock-4";
+        p.blurb_en = "A narrow curved valley. Every variable matters, and they are tightly coupled.";
+        for (int i = 1; i <= 4; ++i) p.param_en.push_back("x" + std::to_string(i));
         p.relevant.assign(4, true);
         p.optimum = 0.0;
         p.f = [](const std::vector<double>& x) {

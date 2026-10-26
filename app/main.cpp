@@ -22,63 +22,72 @@
 
 namespace fs = std::filesystem;
 
-// ------------------------------------------------------------------ every string on screen
+// ------------------------------------------------------------------ every string on screen, in both languages
+struct L { const char* ja; const char* en; };
+static bool g_en = false;   // the language selector
+static const char* tr(const L& l) { return g_en ? l.en : l.ja; }
+static std::vector<L>& all_strings() { static std::vector<L> v; return v; }
+static L reg(L l) { all_strings().push_back(l); return l; }
+
 namespace ja {
-const char* kTitle = "永遠 ─ 因果最適化ラボ";
-const char* kTagline = "介入して、効くものだけを残す。";
-const char* kProblem = "問題";
-const char* kNoise = "測定ノイズ（ばらつきに対する割合）";
-const char* kBudget = "試行の予算";
-const char* kSpeed = "速度（試行/秒）";
-const char* kSeed = "乱数シード";
-const char* kStart = "開始";
-const char* kPause = "一時停止";
-const char* kStep = "1手進める";
-const char* kReset = "リセット";
-const char* kTrials = "試行数";
-const char* kBest = "最良値";
-const char* kOptimum = "既知の最適値";
-const char* kGap = "最適値との差";
-const char* kRandomGap = "ランダム探索の差";
-const char* kSigma = "推定ノイズ σ";
-const char* kCuriosity = "好奇心 C";
-const char* kRho = "探索率 ρ";
-const char* kActive = "原因と判定された変数";
-const char* kKinds = "試行の種類";
-const char* kLog = "出来事";
-const char* kHistory = "最適化の推移（最適値との差・対数）";
-const char* kAciLine = "永遠（ACI）";
-const char* kRandomLine = "ランダム探索";
-const char* kScreen = "因果スクリーニング（介入効果 ÷ ノイズ）";
-const char* kThreshold = "判定の閾値";
-const char* kCause = "原因";
-const char* kFrozen = "無関係 → 固定";
-const char* kUntested = "未検査";
-const char* kSlice = "断面図（表示専用・試行数に含まない）";
-const char* kIncumbent = "現在の最良点";
-const char* kRules = "学習したルール";
-const char* kVar = "変数";
-const char* kRange = "区間";
-const char* kMean = "成功率（事後平均）";
-const char* kEvidence = "証拠量";
-const char* kZ = "確信度 z";
-const char* kPairs = "組み合わせルール";
-const char* kParallel = "平行座標（直近の試行・明るいほど良い）";
-const char* kDrives = "動機（好奇心）と探索率";
-const char* kTrialAxis = "試行";
-const char* kNeedTwo = "原因の変数が2つ以上になると表示されます";
-const char* kWaiting = "スクリーニング後に表示されます";
-const char* kDone = "予算を使い切りました";
-const char* kRunning = "実行中";
-const char* kPaused = "停止中";
-const char* kKindNames[] = {"初期探索", "再測定", "介入", "活用", "探索", "局所探索", "ランダム"};
-const char* kEvFreeze = "は原因ではない → 固定";
-const char* kEvRevive = "が再び効き始めた → 復活";
-const char* kEvZoom = "の範囲を絞り込み（結晶化）";
-const char* kEvExpand = "停滞したので範囲を再び広げた";
-const char* kEvDoubt = "は判定が際どい → 再検査";
-const char* kPick = "『%s』";
-const char* kBest2 = "最良";
+const L kTitle = reg({"永遠 ─ 因果最適化ラボ", "Eternal ─ Causal Optimization Lab"});
+const L kHeading = reg({"永遠 ─ 因果最適化ラボ", "Eternal Optimizer"});
+const L kTagline = reg({"介入して、効くものだけを残す。", "Intervene, and keep only what works."});
+const L kLanguage = reg({"言語", "Language"});
+const L kProblem = reg({"問題", "Problem"});
+const L kNoise = reg({"測定ノイズ（ばらつきに対する割合）", "Measurement noise (share of spread)"});
+const L kBudget = reg({"試行の予算", "Trial budget"});
+const L kSpeed = reg({"速度（試行/秒）", "Speed (trials/s)"});
+const L kSeed = reg({"乱数シード", "Random seed"});
+const L kStart = reg({"開始", "Start"});
+const L kPause = reg({"一時停止", "Pause"});
+const L kStep = reg({"1手進める", "Step once"});
+const L kReset = reg({"リセット", "Reset"});
+const L kTrials = reg({"試行数", "Trials"});
+const L kBest = reg({"最良値", "Best value"});
+const L kOptimum = reg({"既知の最適値", "Known optimum"});
+const L kGap = reg({"最適値との差", "Gap to optimum"});
+const L kRandomGap = reg({"ランダム探索の差", "Random search gap"});
+const L kSigma = reg({"推定ノイズ σ", "Noise estimate σ"});
+const L kCuriosity = reg({"好奇心 C", "Curiosity C"});
+const L kRho = reg({"探索率 ρ", "Exploration rate ρ"});
+const L kActive = reg({"原因と判定された変数", "Causes found"});
+const L kKinds = reg({"試行の種類", "Trial kinds"});
+const L kLog = reg({"出来事", "Events"});
+const L kHistory = reg({"最適化の推移（最適値との差・対数）", "Progress (gap to optimum, log scale)"});
+const L kAciLine = reg({"永遠（ACI）", "Eternal (ACI)"});
+const L kRandomLine = reg({"ランダム探索", "Random search"});
+const L kScreen = reg({"因果スクリーニング（介入効果 ÷ ノイズ）", "Causal screening (intervention effect ÷ noise)"});
+const L kThreshold = reg({"判定の閾値", "Decision threshold"});
+const L kCause = reg({"原因", "cause"});
+const L kFrozen = reg({"無関係 → 固定", "irrelevant → frozen"});
+const L kUntested = reg({"未検査", "untested"});
+const L kSlice = reg({"断面図（表示専用・試行数に含まない）", "Cross-section (display only, not counted as trials)"});
+const L kIncumbent = reg({"現在の最良点", "Current best"});
+const L kRules = reg({"学習したルール", "Learned rules"});
+const L kVar = reg({"変数", "Variable"});
+const L kRange = reg({"区間", "Range"});
+const L kMean = reg({"成功率（事後平均）", "Success rate"});
+const L kEvidence = reg({"証拠量", "Evidence"});
+const L kZ = reg({"確信度 z", "z"});
+const L kPairs = reg({"組み合わせルール", "Pair rules"});
+const L kPairFmt = reg({"『%s』×『%s』  成功率 %.2f  z %.2f", "%s × %s  success %.2f  z %.2f"});
+const L kRangeFmt = reg({"%.3g 〜 %.3g", "%.3g – %.3g"});
+const L kParallel = reg({"平行座標（直近の試行・明るいほど良い）", "Parallel coordinates (recent trials, brighter is better)"});
+const L kDrives = reg({"動機（好奇心）と探索率", "Drive (curiosity) and exploration rate"});
+const L kTrialAxis = reg({"試行", "Trial"});
+const L kNeedTwo = reg({"原因の変数が2つ以上になると表示されます", "Shown once two or more variables are causes"});
+const L kWaiting = reg({"スクリーニング後に表示されます", "Shown after screening"});
+const L kDone = reg({"予算を使い切りました", "Budget used up"});
+const L kRunning = reg({"実行中", "Running"});
+const L kPaused = reg({"停止中", "Paused"});
+const L kTickTop = reg({"10⁶以上", "10⁶+"});
+const L kEvFreeze = reg({"#%d 『%s』は原因ではない → 固定", "#%d %s is not a cause → frozen"});
+const L kEvRevive = reg({"#%d 『%s』が再び効き始めた → 復活", "#%d %s matters again → revived"});
+const L kEvZoom = reg({"#%d 『%s』の範囲を絞り込み（結晶化）", "#%d %s: range narrowed (crystallised)"});
+const L kEvExpand = reg({"#%d 停滞したので範囲を再び広げた", "#%d stalled, so the ranges were widened again"});
+const L kEvDoubt = reg({"#%d 『%s』は判定が際どい → 再検査", "#%d %s is borderline → testing again"});
+const L kKindNames[] = {reg({"初期探索", "Warm-up"}), reg({"再測定", "Re-measure"}), reg({"介入", "Intervene"}), reg({"活用", "Exploit"}), reg({"探索", "Explore"}), reg({"局所探索", "Local search"}), reg({"ランダム", "Random"})};
 }  // namespace ja
 
 static const ImVec4 kKindColor[] = {
@@ -107,16 +116,8 @@ static void load_fonts(float scale, const std::vector<aci::Problem>& probs, ImFo
     ImGuiIO& io = ImGui::GetIO();
     ImFontGlyphRangesBuilder b;
     b.AddRanges(io.Fonts->GetGlyphRangesJapanese());
-    for (const char* s : {ja::kTitle, ja::kTagline, ja::kProblem, ja::kNoise, ja::kBudget, ja::kSpeed, ja::kSeed, ja::kStart,
-                          ja::kPause, ja::kStep, ja::kReset, ja::kTrials, ja::kBest, ja::kOptimum, ja::kGap, ja::kRandomGap,
-                          ja::kSigma, ja::kCuriosity, ja::kRho, ja::kActive, ja::kKinds, ja::kLog, ja::kHistory, ja::kAciLine,
-                          ja::kRandomLine, ja::kScreen, ja::kThreshold, ja::kCause, ja::kFrozen, ja::kUntested, ja::kSlice,
-                          ja::kIncumbent, ja::kRules, ja::kVar, ja::kRange, ja::kMean, ja::kEvidence, ja::kZ, ja::kPairs,
-                          ja::kParallel, ja::kDrives, ja::kTrialAxis, ja::kNeedTwo, ja::kWaiting, ja::kDone, ja::kRunning,
-                          ja::kPaused, ja::kEvFreeze, ja::kEvRevive, ja::kEvZoom, ja::kEvExpand, ja::kEvDoubt, ja::kPick, ja::kBest2,
-                          "σρ─→・（）÷『』℃³⁴⁵⁶以上〜×"})
-        b.AddText(s);
-    for (const char* s : ja::kKindNames) b.AddText(s);
+    for (const L& l : all_strings()) { b.AddText(l.ja); b.AddText(l.en); }
+    b.AddText("σρ─→・（）÷『』℃°³⁴⁵⁶以上〜×–’日本語");
     for (const auto& p : probs) {
         b.AddText(p.name.c_str());
         b.AddText(p.blurb.c_str());
@@ -242,14 +243,18 @@ struct Session {
     }
 };
 
+static const char* pname(const aci::Problem& p, int i) { return g_en ? p.param_en[i].c_str() : p.params[i].name.c_str(); }
+static const char* prob_name(const aci::Problem& p) { return g_en ? p.name_en.c_str() : p.name.c_str(); }
+static const char* prob_blurb(const aci::Problem& p) { return g_en ? p.blurb_en.c_str() : p.blurb.c_str(); }
+
 static std::string event_text(const aci::Event& e, const aci::Problem& p) {
     char buf[256];
-    const std::string name = e.param >= 0 ? p.params[e.param].name : "";
-    if (e.what == "freeze") std::snprintf(buf, sizeof buf, "#%d 『%s』%s", e.trial + 1, name.c_str(), ja::kEvFreeze);
-    else if (e.what == "revive") std::snprintf(buf, sizeof buf, "#%d 『%s』%s", e.trial + 1, name.c_str(), ja::kEvRevive);
-    else if (e.what == "doubt") std::snprintf(buf, sizeof buf, "#%d 『%s』%s", e.trial + 1, name.c_str(), ja::kEvDoubt);
-    else if (e.what == "zoom") std::snprintf(buf, sizeof buf, "#%d 『%s』%s", e.trial + 1, name.c_str(), ja::kEvZoom);
-    else std::snprintf(buf, sizeof buf, "#%d %s", e.trial + 1, ja::kEvExpand);
+    const char* name = e.param >= 0 ? pname(p, e.param) : "";
+    if (e.what == "freeze") std::snprintf(buf, sizeof buf, tr(ja::kEvFreeze), e.trial + 1, name);
+    else if (e.what == "revive") std::snprintf(buf, sizeof buf, tr(ja::kEvRevive), e.trial + 1, name);
+    else if (e.what == "doubt") std::snprintf(buf, sizeof buf, tr(ja::kEvDoubt), e.trial + 1, name);
+    else if (e.what == "zoom") std::snprintf(buf, sizeof buf, tr(ja::kEvZoom), e.trial + 1, name);
+    else std::snprintf(buf, sizeof buf, tr(ja::kEvExpand), e.trial + 1);
     return buf;
 }
 
@@ -257,30 +262,37 @@ static std::string event_text(const aci::Event& e, const aci::Problem& p) {
 
 static void controls(Session& s, ImFont* big) {
     if (big) ImGui::PushFont(big);
-    ImGui::TextUnformatted(ja::kTitle);
+    ImGui::TextUnformatted(tr(ja::kHeading));
     if (big) ImGui::PopFont();
-    ImGui::TextDisabled("%s", ja::kTagline);
+    ImGui::TextDisabled("%s", tr(ja::kTagline));
+    ImGui::TextUnformatted(tr(ja::kLanguage));
+    ImGui::SameLine();
+    bool lang = false;
+    if (ImGui::RadioButton("日本語", !g_en)) { g_en = false; lang = true; }
+    ImGui::SameLine();
+    if (ImGui::RadioButton("English", g_en)) { g_en = true; lang = true; }
+    if (lang) glfwSetWindowTitle(glfwGetCurrentContext(), tr(ja::kTitle));
     ImGui::Separator();
 
     bool changed = false;
-    ImGui::TextUnformatted(ja::kProblem);
+    ImGui::TextUnformatted(tr(ja::kProblem));
     ImGui::SetNextItemWidth(-1);
-    if (ImGui::BeginCombo("##problem", s.P().name.c_str())) {
+    if (ImGui::BeginCombo("##problem", prob_name(s.P()))) {
         for (int i = 0; i < (int)s.probs.size(); ++i)
-            if (ImGui::Selectable(s.probs[i].name.c_str(), i == s.problem)) { s.problem = i; changed = true; }
+            if (ImGui::Selectable(prob_name(s.probs[i]), i == s.problem)) { s.problem = i; changed = true; }
         ImGui::EndCombo();
     }
-    ImGui::TextWrapped("%s", s.P().blurb.c_str());
-    ImGui::TextUnformatted(ja::kNoise);
+    ImGui::TextWrapped("%s", prob_blurb(s.P()));
+    ImGui::TextUnformatted(tr(ja::kNoise));
     ImGui::SetNextItemWidth(-1);
     changed |= ImGui::SliderFloat("##noise", &s.noise, 0.0f, 0.10f, "%.2f");
-    ImGui::TextUnformatted(ja::kBudget);
+    ImGui::TextUnformatted(tr(ja::kBudget));
     ImGui::SetNextItemWidth(-1);
     ImGui::SliderInt("##budget", &s.budget, 50, 1500);
-    ImGui::TextUnformatted(ja::kSpeed);
+    ImGui::TextUnformatted(tr(ja::kSpeed));
     ImGui::SetNextItemWidth(-1);
     ImGui::SliderFloat("##speed", &s.speed, 1.0f, 400.0f, "%.0f", ImGuiSliderFlags_Logarithmic);
-    ImGui::TextUnformatted(ja::kSeed);
+    ImGui::TextUnformatted(tr(ja::kSeed));
     ImGui::SetNextItemWidth(-1);
     changed |= ImGui::InputInt("##seed", &s.seed);
     if (changed) { s.running = false; s.reset(); }
@@ -288,42 +300,42 @@ static void controls(Session& s, ImFont* big) {
     ImGui::Spacing();
     const float w = (ImGui::GetContentRegionAvail().x - 8) / 2;
     ImGui::PushStyleColor(ImGuiCol_Text, ImVec4(0, 0, 0, 1));
-    if (ImGui::Button(s.running ? ja::kPause : ja::kStart, {w, 34})) s.running = !s.running;
+    if (ImGui::Button(s.running ? tr(ja::kPause) : tr(ja::kStart), {w, 34})) s.running = !s.running;
     ImGui::SameLine();
-    if (ImGui::Button(ja::kStep, {w, 34})) { s.running = false; s.step(); }
-    if (ImGui::Button(ja::kReset, {-1, 30})) { s.running = false; s.reset(); }
+    if (ImGui::Button(tr(ja::kStep), {w, 34})) { s.running = false; s.step(); }
+    if (ImGui::Button(tr(ja::kReset), {-1, 30})) { s.running = false; s.reset(); }
     ImGui::PopStyleColor();
-    ImGui::TextDisabled("%s", s.done() >= s.budget ? ja::kDone : s.running ? ja::kRunning : ja::kPaused);
+    ImGui::TextDisabled("%s", s.done() >= s.budget ? tr(ja::kDone) : s.running ? tr(ja::kRunning) : tr(ja::kPaused));
     ImGui::Separator();
 
     auto row = [](const char* k, const char* fmt, double v) {
         ImGui::TextUnformatted(k);
-        ImGui::SameLine(190);
+        ImGui::SameLine(g_en ? 175 : 190);
         ImGui::Text(fmt, v);
     };
     const auto& o = *s.opt;
-    row(ja::kTrials, "%.0f", s.done());
-    row(ja::kBest, "%.5g", o.trials().empty() ? 0.0 : s.P().f(o.incumbent()));
-    row(ja::kOptimum, "%.5g", s.P().optimum);
-    row(ja::kGap, "%.3g", s.gap_aci.empty() ? 0.0 : s.gap_aci.back());
-    row(ja::kRandomGap, "%.3g", s.gap_rnd.empty() ? 0.0 : s.gap_rnd.back());
-    row(ja::kSigma, "%.3g", o.noise());
-    row(ja::kCuriosity, "%.2f", o.curiosity());
-    row(ja::kRho, "%.2f", o.last_rho());
-    ImGui::TextUnformatted(ja::kActive);
-    ImGui::SameLine(190);
+    row(tr(ja::kTrials), "%.0f", s.done());
+    row(tr(ja::kBest), "%.5g", o.trials().empty() ? 0.0 : s.P().f(o.incumbent()));
+    row(tr(ja::kOptimum), "%.5g", s.P().optimum);
+    row(tr(ja::kGap), "%.3g", s.gap_aci.empty() ? 0.0 : s.gap_aci.back());
+    row(tr(ja::kRandomGap), "%.3g", s.gap_rnd.empty() ? 0.0 : s.gap_rnd.back());
+    row(tr(ja::kSigma), "%.3g", o.noise());
+    row(tr(ja::kCuriosity), "%.2f", o.curiosity());
+    row(tr(ja::kRho), "%.2f", o.last_rho());
+    ImGui::TextUnformatted(tr(ja::kActive));
+    ImGui::SameLine(g_en ? 175 : 190);
     ImGui::Text("%d / %d", o.active_count(), (int)s.P().params.size());
     ImGui::Separator();
 
-    ImGui::TextUnformatted(ja::kKinds);
+    ImGui::TextUnformatted(tr(ja::kKinds));
     for (int k = 0; k < 6; ++k) {
         ImGui::ColorButton("##k", kKindColor[k], ImGuiColorEditFlags_NoTooltip, {12, 12});
         ImGui::SameLine();
-        ImGui::TextUnformatted(ja::kKindNames[k]);
-        if (k % 2 == 0) ImGui::SameLine(150);
+        ImGui::TextUnformatted(tr(ja::kKindNames[k]));
+        if (k % 2 == 0) ImGui::SameLine(160);
     }
     ImGui::Separator();
-    ImGui::TextUnformatted(ja::kLog);
+    ImGui::TextUnformatted(tr(ja::kLog));
     ImGui::BeginChild("##log", {0, 0}, ImGuiChildFlags_Borders);
     const auto& ev = o.events();
     for (int i = (int)ev.size() - 1; i >= 0 && i >= (int)ev.size() - 40; --i)
@@ -332,15 +344,15 @@ static void controls(Session& s, ImFont* big) {
 }
 
 static void history_plot(Session& s, ImVec2 size) {
-    if (ImPlot::BeginPlot(ja::kHistory, size)) {
-        ImPlot::SetupAxes(ja::kTrialAxis, nullptr, ImPlotAxisFlags_AutoFit, ImPlotAxisFlags_AutoFit);
+    if (ImPlot::BeginPlot(tr(ja::kHistory), size)) {
+        ImPlot::SetupAxes(tr(ja::kTrialAxis), nullptr, ImPlotAxisFlags_AutoFit, ImPlotAxisFlags_AutoFit);
         ImPlot::SetupAxisScale(ImAxis_Y1, ImPlotScale_Log10);
         ImPlot::SetupLegend(ImPlotLocation_NorthEast);
         if (!s.xs.empty()) {
             ImPlot::SetNextLineStyle({0.6f, 0.6f, 0.6f, 1}, 2);
-            ImPlot::PlotLine(ja::kRandomLine, s.xs.data(), s.gap_rnd.data(), (int)s.xs.size());
+            ImPlot::PlotLine(tr(ja::kRandomLine), s.xs.data(), s.gap_rnd.data(), (int)s.xs.size());
             ImPlot::SetNextLineStyle({1, 1, 1, 1}, 2.5f);
-            ImPlot::PlotLine(ja::kAciLine, s.xs.data(), s.gap_aci.data(), (int)s.xs.size());
+            ImPlot::PlotLine(tr(ja::kAciLine), s.xs.data(), s.gap_aci.data(), (int)s.xs.size());
             // every trial, coloured by kind, at its own true gap
             for (int k = 0; k < 6; ++k) {
                 std::vector<double> tx, ty;
@@ -358,15 +370,15 @@ static void history_plot(Session& s, ImVec2 size) {
 static void screening_plot(Session& s, ImVec2 size) {
     const auto& P = s.P();
     const int d = (int)P.params.size();
-    if (ImPlot::BeginPlot(ja::kScreen, size, ImPlotFlags_NoLegend)) {
+    if (ImPlot::BeginPlot(tr(ja::kScreen), size, ImPlotFlags_NoLegend)) {
         std::vector<const char*> names;
         std::vector<double> pos;
-        for (int i = 0; i < d; ++i) { names.push_back(P.params[i].name.c_str()); pos.push_back(i); }
+        for (int i = 0; i < d; ++i) { names.push_back(pname(P, i)); pos.push_back(i); }
         ImPlot::SetupAxes(nullptr, nullptr, ImPlotAxisFlags_None, ImPlotAxisFlags_Invert);
         ImPlot::SetupAxisScale(ImAxis_X1, ImPlotScale_Log10);
         ImPlot::SetupAxisLimits(ImAxis_X1, 0.1, 1e6, ImPlotCond_Always);
         static const double xt[] = {0.1, 1, 10, 100, 1e3, 1e4, 1e5, 1e6};
-        static const char* xl[] = {"0.1", "1", "10", "100", "10³", "10⁴", "10⁵", "10⁶以上"};
+        const char* xl[] = {"0.1", "1", "10", "100", "10³", "10⁴", "10⁵", tr(ja::kTickTop)};
         ImPlot::SetupAxisTicks(ImAxis_X1, xt, 8, xl);
         ImPlot::SetupAxisLimits(ImAxis_Y1, -0.7, d - 0.3, ImPlotCond_Always);
         ImPlot::SetupAxisTicks(ImAxis_Y1, pos.data(), d, names.data());
@@ -377,15 +389,15 @@ static void screening_plot(Session& s, ImVec2 size) {
             const ImVec4 col = v.cause ? ImVec4(1, 1, 1, 1) : ImVec4(0.35f, 0.35f, 0.38f, 1);
             ImPlot::SetNextFillStyle(col);
             ImPlot::PlotBars("##b", &val, &y, 1, 0.6, ImPlotBarsFlags_Horizontal);
-            const ImVec2 sz = ImGui::CalcTextSize(v.cause ? ja::kCause : ja::kFrozen);
+            const ImVec2 sz = ImGui::CalcTextSize(v.cause ? tr(ja::kCause) : tr(ja::kFrozen));
             ImPlot::PushStyleColor(ImPlotCol_InlayText, v.cause ? ImVec4(0, 0, 0, 1) : ImVec4(0.85f, 0.85f, 0.88f, 1));
-            ImPlot::PlotText(v.cause ? ja::kCause : ja::kFrozen, 0.1, y, {sz.x / 2 + 10, 0});
+            ImPlot::PlotText(v.cause ? tr(ja::kCause) : tr(ja::kFrozen), 0.1, y, {sz.x / 2 + 10, 0});
             ImPlot::PopStyleColor();
         }
         if (s.opt->screened()) {
             const double thr = 4.0;
             ImPlot::SetNextLineStyle({0.95f, 0.35f, 0.75f, 1}, 1.5f);
-            ImPlot::PlotInfLines(ja::kThreshold, &thr, 1);
+            ImPlot::PlotInfLines(tr(ja::kThreshold), &thr, 1);
         }
         ImPlot::EndPlot();
     }
@@ -395,15 +407,15 @@ static void slice_plot(Session& s, ImVec2 size) {
     s.refresh_slice();
     if (s.slice_i < 0) {
         ImGui::BeginChild("##slice_wait", size, ImGuiChildFlags_Borders);
-        ImGui::TextUnformatted(ja::kSlice);
-        ImGui::TextDisabled("%s", s.opt->screened() ? ja::kNeedTwo : ja::kWaiting);
+        ImGui::TextUnformatted(tr(ja::kSlice));
+        ImGui::TextDisabled("%s", s.opt->screened() ? tr(ja::kNeedTwo) : tr(ja::kWaiting));
         ImGui::EndChild();
         return;
     }
     const auto& a = s.P().params[s.slice_i];
     const auto& b = s.P().params[s.slice_j];
-    if (ImPlot::BeginPlot(ja::kSlice, size, ImPlotFlags_NoLegend)) {
-        ImPlot::SetupAxes(a.name.c_str(), b.name.c_str(), ImPlotAxisFlags_NoGridLines, ImPlotAxisFlags_NoGridLines);
+    if (ImPlot::BeginPlot(tr(ja::kSlice), size, ImPlotFlags_NoLegend)) {
+        ImPlot::SetupAxes(pname(s.P(), s.slice_i), pname(s.P(), s.slice_j), ImPlotAxisFlags_NoGridLines, ImPlotAxisFlags_NoGridLines);
         ImPlot::SetupAxesLimits(a.lo, a.hi, b.lo, b.hi, ImPlotCond_Always);
         const auto [mn, mx] = std::minmax_element(s.slice.begin(), s.slice.end());
         ImPlot::PushColormap(ImPlotColormap_Greys);
@@ -426,26 +438,26 @@ static void slice_plot(Session& s, ImVec2 size) {
         const auto& inc = s.opt->incumbent();
         double ix = inc[s.slice_i], iy = inc[s.slice_j];
         ImPlot::SetNextMarkerStyle(ImPlotMarker_Diamond, 9, {1, 1, 1, 1}, 1.5f, {0, 0, 0, 1});
-        ImPlot::PlotScatter(ja::kIncumbent, &ix, &iy, 1);
+        ImPlot::PlotScatter(tr(ja::kIncumbent), &ix, &iy, 1);
         ImPlot::EndPlot();
     }
 }
 
 static void rules_table(Session& s, ImVec2 size) {
     ImGui::BeginChild("##rules", size, ImGuiChildFlags_Borders);
-    ImGui::TextUnformatted(ja::kRules);
-    if (!s.opt->screened()) { ImGui::TextDisabled("%s", ja::kWaiting); ImGui::EndChild(); return; }
+    ImGui::TextUnformatted(tr(ja::kRules));
+    if (!s.opt->screened()) { ImGui::TextDisabled("%s", tr(ja::kWaiting)); ImGui::EndChild(); return; }
     const auto rules = s.opt->bin_rules();
     if (ImGui::BeginTable("##t", 5, ImGuiTableFlags_RowBg | ImGuiTableFlags_SizingStretchProp | ImGuiTableFlags_ScrollY,
                           {0, size.y * 0.62f})) {
         ImGui::TableSetupScrollFreeze(0, 1);
-        for (const char* h : {ja::kVar, ja::kRange, ja::kMean, ja::kEvidence, ja::kZ}) ImGui::TableSetupColumn(h);
+        for (const char* h : {tr(ja::kVar), tr(ja::kRange), tr(ja::kMean), tr(ja::kEvidence), tr(ja::kZ)}) ImGui::TableSetupColumn(h);
         ImGui::TableHeadersRow();
         for (const auto& r : rules) {
             if (!r.best) continue;
             ImGui::TableNextRow();
-            ImGui::TableNextColumn(); ImGui::TextUnformatted(s.P().params[r.param].name.c_str());
-            ImGui::TableNextColumn(); ImGui::Text("%.3g 〜 %.3g", r.lo, r.hi);
+            ImGui::TableNextColumn(); ImGui::TextUnformatted(pname(s.P(), r.param));
+            ImGui::TableNextColumn(); ImGui::Text(tr(ja::kRangeFmt), r.lo, r.hi);
             ImGui::TableNextColumn();
             ImGui::ProgressBar((float)r.mean, {-1, 0}, "");
             ImGui::SameLine(8); ImGui::Text("%.2f", r.mean);
@@ -454,10 +466,10 @@ static void rules_table(Session& s, ImVec2 size) {
         }
         ImGui::EndTable();
     }
-    ImGui::TextUnformatted(ja::kPairs);
+    ImGui::TextUnformatted(tr(ja::kPairs));
     for (const auto& pr : s.opt->pair_rules(4)) {
         const auto& P = s.P().params;
-        ImGui::BulletText("『%s』×『%s』  %s %.2f  z %.2f", P[pr.pi].name.c_str(), P[pr.pj].name.c_str(), ja::kMean, pr.mean, pr.z);
+        ImGui::BulletText(tr(ja::kPairFmt), pname(s.P(), pr.pi), pname(s.P(), pr.pj), pr.mean, pr.z);
     }
     ImGui::EndChild();
 }
@@ -465,19 +477,19 @@ static void rules_table(Session& s, ImVec2 size) {
 static void parallel_plot(Session& s, ImVec2 size) {
     const auto& P = s.P();
     const int d = (int)P.params.size();
-    if (ImPlot::BeginPlot(ja::kParallel, size, ImPlotFlags_NoLegend)) {
+    if (ImPlot::BeginPlot(tr(ja::kParallel), size, ImPlotFlags_NoLegend)) {
         std::vector<const char*> names;
         std::vector<double> pos;
         static std::vector<std::string> shorts;
         shorts.clear();
         for (int i = 0; i < d; ++i) {
-            std::string n = P.params[i].name;
+            std::string n = pname(P, i);
             if (auto k = n.find(" ("); k != std::string::npos) n = n.substr(0, k);
             shorts.push_back(i % 2 ? "\n" + n : n);
         }
         for (int i = 0; i < d; ++i) { names.push_back(shorts[i].c_str()); pos.push_back(i); }
         ImPlot::SetupAxes(nullptr, nullptr, ImPlotAxisFlags_None, ImPlotAxisFlags_NoTickLabels);
-        ImPlot::SetupAxesLimits(-0.2, d - 0.8, -0.02, 1.02, ImPlotCond_Always);
+        ImPlot::SetupAxesLimits(-0.45, d - 0.3, -0.02, 1.02, ImPlotCond_Always);
         ImPlot::SetupAxisTicks(ImAxis_X1, pos.data(), d, names.data());
         const auto& T = s.opt->trials();
         const int from = std::max(0, (int)T.size() - 150);
@@ -498,15 +510,15 @@ static void parallel_plot(Session& s, ImVec2 size) {
 }
 
 static void drives_plot(Session& s, ImVec2 size) {
-    if (ImPlot::BeginPlot(ja::kDrives, size)) {
-        ImPlot::SetupAxes(ja::kTrialAxis, nullptr, ImPlotAxisFlags_AutoFit, ImPlotAxisFlags_None);
+    if (ImPlot::BeginPlot(tr(ja::kDrives), size)) {
+        ImPlot::SetupAxes(tr(ja::kTrialAxis), nullptr, ImPlotAxisFlags_AutoFit, ImPlotAxisFlags_None);
         ImPlot::SetupAxisLimits(ImAxis_Y1, 0, 1.05, ImPlotCond_Always);
         ImPlot::SetupLegend(ImPlotLocation_NorthEast);
         if (!s.xs.empty()) {
             ImPlot::SetNextLineStyle({1.0f, 0.6f, 0.2f, 1}, 2);
-            ImPlot::PlotLine(ja::kCuriosity, s.xs.data(), s.curiosity.data(), (int)s.xs.size());
+            ImPlot::PlotLine(tr(ja::kCuriosity), s.xs.data(), s.curiosity.data(), (int)s.xs.size());
             ImPlot::SetNextLineStyle({0.3f, 0.85f, 0.95f, 1}, 2);
-            ImPlot::PlotLine(ja::kRho, s.xs.data(), s.rho.data(), (int)s.xs.size());
+            ImPlot::PlotLine(tr(ja::kRho), s.xs.data(), s.rho.data(), (int)s.xs.size());
         }
         ImPlot::EndPlot();
     }
@@ -526,6 +538,7 @@ int main(int argc, char** argv) {
         else if (a == "--steps") cap_steps = std::atoi(argv[++i]);
         else if (a == "--problem") cap_problem = std::atoi(argv[++i]);
         else if (a == "--noise") cap_noise = (float)std::atof(argv[++i]);
+        else if (a == "--lang") g_en = std::string(argv[++i]) == "en";
     }
     if (!glfwInit()) return 1;
     if (!capture.empty()) glfwWindowHint(GLFW_VISIBLE, GLFW_FALSE);
@@ -533,7 +546,7 @@ int main(int argc, char** argv) {
     glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 2);
     glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
     glfwWindowHint(GLFW_OPENGL_FORWARD_COMPAT, GL_TRUE);
-    GLFWwindow* win = glfwCreateWindow(1600, 980, ja::kTitle, nullptr, nullptr);
+    GLFWwindow* win = glfwCreateWindow(1600, 980, tr(ja::kTitle), nullptr, nullptr);
     if (!win) return 1;
     glfwMakeContextCurrent(win);
     glfwSwapInterval(1);
