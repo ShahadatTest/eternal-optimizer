@@ -28,7 +28,7 @@ struct Param {
     double lo, hi;
 };
 
-enum class Kind { Warmup, Remeasure, Intervene, Exploit, Explore, Local, Random };
+enum class Kind { Warmup, Remeasure, Intervene, Exploit, Explore, Local, Random, Recall };
 
 struct Trial {
     int id;
@@ -63,6 +63,18 @@ struct Event {               // a crystallisation, freeze, revival or expansion,
     int param;
 };
 
+// What past studies taught: per parameter name, how often it proved a cause and where the best
+// value sat (as a share of its range). Memory only proposes; every remembered verdict is
+// re-tested by intervention in the new study, and a contradiction triggers the full test.
+struct Memory {
+    struct Entry { std::string name; double cause_votes = 0, seen = 0, best_u = 0.5; };
+    std::vector<Entry> entries;
+    int studies = 0;
+    const Entry* find(const std::string& name) const;
+    std::string save() const;                       // a small text format, one parameter per line
+    static Memory load(const std::string& text);
+};
+
 struct Options {
     int warmup = 0;          // 0: max(10, 2 d)
     int bins = 6;
@@ -74,11 +86,21 @@ struct Options {
     int recheck_every = 80;
     int stall_reset = 60;
     double local_share = 0.35;
+    // how memory is used (only when a Memory is passed in)
+    double recall_share = 0.5;    // share of warm-up trials placed near the remembered best
+    double recall_spread = 0.08;  // their spread, as a share of each range
+    double recall_zoom = 0.2;     // starting search range: remembered best +- this share of the range
+    int recall_confirm = 1;       // confirming interventions per remembered knob (a fresh knob gets 3)
 };
 
 class Optimizer {
 public:
-    Optimizer(std::vector<Param> params, uint64_t seed, Options opt = {});
+    Optimizer(std::vector<Param> params, uint64_t seed, Options opt = {}, const Memory* memory = nullptr);
+
+    // Fold this study into a memory (pass the previous memory to accumulate across studies).
+    // forget_half_life: in studies; older studies count half as much after this many (0: never forget)
+    Memory remember(const Memory* previous = nullptr, double forget_half_life = 0) const;
+    bool has_memory() const { return !prior_.empty(); }
 
     std::vector<double> ask();
     void tell(double y);
@@ -105,7 +127,7 @@ private:
     struct Plan { std::vector<double> x; Kind kind; int param; };
 
     std::vector<double> uniform_point(std::mt19937_64& g) const;
-    void plan_screening(const std::vector<int>& which);
+    void plan_screening(const std::vector<int>& which, bool full = false);
     void finish_screening();
     Plan propose();
     Plan propose_local();
@@ -151,6 +173,11 @@ private:
     double C_ = 0.5, eta_ = 0.1, kappa_ = 0.9;
     double scale_ = 1.0;
     double local_step_ = 0.1;
+
+    // memory: per parameter, the remembered verdict (-1 unknown, 0 irrelevant, 1 cause) and best value
+    std::vector<int> prior_;
+    std::vector<double> prior_best_;
+    bool regions_from_memory_ = false;
     double last_rho_ = 0.0;
     int proposals_ = 0;
 

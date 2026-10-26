@@ -3,6 +3,8 @@
 #include <algorithm>
 #include <cmath>
 #include <numeric>
+#include <cstdio>
+#include <cstdlib>
 #include <stdexcept>
 
 namespace aci {
@@ -11,10 +13,23 @@ namespace {
 double clampd(double v, double a, double b) { return std::max(a, std::min(b, v)); }
 }  // namespace
 
-Optimizer::Optimizer(std::vector<Param> params, uint64_t seed, Options opt)
+Optimizer::Optimizer(std::vector<Param> params, uint64_t seed, Options opt, const Memory* memory)
     : params_(std::move(params)), opt_(opt), rng_(seed), d_(static_cast<int>(params_.size())) {
     if (d_ == 0) throw std::invalid_argument("no parameters");
-    if (opt_.warmup <= 0) opt_.warmup = std::max(10, 2 * d_);
+    if (memory && memory->studies > 0) {
+        prior_.assign(d_, -1);
+        prior_best_.assign(d_, 0.5);
+        int known = 0;
+        for (int i = 0; i < d_; ++i)
+            if (const auto* e = memory->find(params_[i].name); e && e->seen > 0) {
+                prior_[i] = e->cause_votes / e->seen >= 0.5 ? 1 : 0;
+                prior_best_[i] = e->best_u;
+                ++known;
+            }
+        if (known == 0) prior_.clear();
+    }
+    if (opt_.warmup <= 0) opt_.warmup = has_memory() ? std::max(4, d_ / 2) : std::max(10, 2 * d_);
+    if (has_memory()) local_step_ = 0.05;
     verdict_.assign(d_, Verdict{});
     for (const auto& p : params_) { lo_.push_back(p.lo); hi_.push_back(p.hi); }
 }
@@ -40,7 +55,19 @@ std::vector<double> Optimizer::ask() {
         pending_ = queue_.front();
         queue_.erase(queue_.begin());
     } else if (T < opt_.warmup) {
-        pending_ = {uniform_point(rng_), Kind::Warmup, -1};
+        const bool recall = has_memory() && std::ceil((T + 1) * opt_.recall_share) > std::ceil(T * opt_.recall_share);
+        if (recall) {                                  // recall: start near what worked before
+            auto x = uniform_point(rng_);
+            std::normal_distribution<double> N(0.0, opt_.recall_spread);
+            for (int i = 0; i < d_; ++i)
+                if (prior_[i] >= 0) {
+                    const double u = std::clamp(prior_best_[i] + (T == 0 ? 0.0 : N(rng_)), 0.0, 1.0);
+                    x[i] = params_[i].lo + u * (params_[i].hi - params_[i].lo);
+                }
+            pending_ = {x, Kind::Recall, -1};
+        } else {
+            pending_ = {uniform_point(rng_), Kind::Warmup, -1};
+        }
     } else if (!screened_) {
         std::vector<int> all(d_);
         std::iota(all.begin(), all.end(), 0);
@@ -100,15 +127,28 @@ void Optimizer::tell(double y) {
 
 // ------------------------------------------------------------------ 1-2. intervene, necessity
 
-void Optimizer::plan_screening(const std::vector<int>& which) {
+void Optimizer::plan_screening(const std::vector<int>& which, bool full) {
     screening_ = true;
     screen_params_ = which;
     screen_start_ = static_cast<int>(trials_.size());
     screen_base_x_ = best_x_;
     base_ys_ = {best_y_};
-    for (int r = 0; r < 5; ++r) queue_.push_back({screen_base_x_, Kind::Remeasure, -1});
+    const int remeasures = has_memory() && !full ? 3 : 5;
+    for (int r = 0; r < remeasures; ++r) queue_.push_back({screen_base_x_, Kind::Remeasure, -1});
     for (int p : which) {
         const double span = params_[p].hi - params_[p].lo;
+        // a remembered verdict needs one confirming intervention; anything else gets three
+        if (!full && has_memory() && prior_[p] >= 0) {
+            static const double fracs[3] = {0.3, -0.3, 0.15};
+            for (int r = 0; r < std::clamp(opt_.recall_confirm, 1, 3); ++r) {
+                auto x = screen_base_x_;
+                double v = x[p] + fracs[r] * span;
+                if (v > params_[p].hi || v < params_[p].lo) v = x[p] - fracs[r] * span;
+                x[p] = clampd(v, params_[p].lo, params_[p].hi);
+                queue_.push_back({x, Kind::Intervene, p});
+            }
+            continue;
+        }
         for (double frac : {0.25, -0.25}) {
             auto x = screen_base_x_;
             double v = x[p] + frac * span;
@@ -150,8 +190,10 @@ void Optimizer::finish_screening() {
         Verdict& v = verdict_[p];
         // in a confirmation round a clear echo is enough: noise rarely fakes an effect twice
         const bool was = v.cause, cause = effect > (confirming ? 0.6 : 1.0) * bar;
-        // a cause that only just clears the bar must reproduce in a fresh round before it counts
-        if (cause && effect < 3.0 * bar && !confirming) {
+        // a verdict that contradicts memory, or a cause that only just clears the bar, must reproduce
+        // in a fresh, full round before it counts
+        const bool contradicts = has_memory() && prior_[p] >= 0 && (prior_[p] == 1) != cause;
+        if (!confirming && (contradicts || (cause && effect < 3.0 * bar))) {
             borderline.push_back(p);
             events_.push_back({T - 1, "doubt", p});
             continue;
@@ -172,8 +214,19 @@ void Optimizer::finish_screening() {
     }
     if (!borderline.empty()) {
         confirming_ = true;
-        plan_screening(borderline);
+        plan_screening(borderline, true);
         return;
+    }
+    if (!screened_ && has_memory() && !regions_from_memory_) {   // start zoomed on the remembered region
+        for (int p = 0; p < d_; ++p) {
+            if (!verdict_[p].cause || prior_[p] != 1) continue;
+            const double span = params_[p].hi - params_[p].lo;
+            const double c = std::clamp(best_x_[p], params_[p].lo, params_[p].hi);
+            lo_[p] = std::max(params_[p].lo, c - opt_.recall_zoom * span);
+            hi_[p] = std::min(params_[p].hi, c + opt_.recall_zoom * span);
+        }
+        regions_from_memory_ = true;
+        events_.push_back({static_cast<int>(trials_.size()) - 1, "recall", -1});
     }
     screened_ = true;
 }
@@ -378,6 +431,63 @@ void Optimizer::drives(double before, double after) {
     C_ = clampd(C_, 0, 1);
     eta_ = clampd(eta_, 0, 1);
     kappa_ = clampd(kappa_, 0, 1);
+}
+
+// ------------------------------------------------------------------ memory
+
+const Memory::Entry* Memory::find(const std::string& name) const {
+    for (const auto& e : entries) if (e.name == name) return &e;
+    return nullptr;
+}
+
+std::string Memory::save() const {
+    std::string out = "studies " + std::to_string(studies) + "\n";
+    char buf[64];
+    for (const auto& e : entries) {
+        std::snprintf(buf, sizeof buf, "\t%.17g\t%.17g\t%.17g\n", e.cause_votes, e.seen, e.best_u);
+        out += e.name + buf;
+    }
+    return out;
+}
+
+Memory Memory::load(const std::string& text) {
+    Memory m;
+    size_t pos = 0;
+    while (pos < text.size()) {
+        size_t end = text.find('\n', pos);
+        if (end == std::string::npos) end = text.size();
+        const std::string line = text.substr(pos, end - pos);
+        pos = end + 1;
+        if (line.rfind("studies ", 0) == 0) { m.studies = std::atoi(line.c_str() + 8); continue; }
+        const size_t a = line.find('\t');
+        if (a == std::string::npos) continue;
+        Entry e;
+        e.name = line.substr(0, a);
+        std::sscanf(line.c_str() + a + 1, "%lf\t%lf\t%lf", &e.cause_votes, &e.seen, &e.best_u);
+        m.entries.push_back(e);
+    }
+    return m;
+}
+
+Memory Optimizer::remember(const Memory* previous, double forget_half_life) const {
+    Memory m = previous ? *previous : Memory{};
+    if (trials_.empty()) return m;
+    if (forget_half_life > 0) {                      // older studies fade: each counts half after h studies
+        const double keep = std::pow(0.5, 1.0 / forget_half_life);
+        for (auto& e : m.entries) { e.cause_votes *= keep; e.seen *= keep; }
+    }
+    for (int i = 0; i < d_; ++i) {
+        if (!verdict_[i].tested) continue;
+        Memory::Entry* e = nullptr;
+        for (auto& x : m.entries) if (x.name == params_[i].name) e = &x;
+        if (!e) { m.entries.push_back({params_[i].name}); e = &m.entries.back(); e->best_u = 0; }
+        const double u = (best_x_[i] - params_[i].lo) / (params_[i].hi - params_[i].lo);
+        if (verdict_[i].cause) e->best_u = (e->best_u * e->cause_votes + u) / (e->cause_votes + 1);
+        e->cause_votes += verdict_[i].cause;
+        e->seen += 1;
+    }
+    m.studies += 1;
+    return m;
 }
 
 // ------------------------------------------------------------------ random baseline

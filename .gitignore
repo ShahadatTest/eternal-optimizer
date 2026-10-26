@@ -4,3 +4,5 @@ build-config.log
 build-err.log
 .DS_Store
 __pycache__/
+compare/run.log
+compare/*.log

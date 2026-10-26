@@ -20,7 +20,7 @@ using json = nlohmann::json;
 
 namespace {
 
-const char* kKind[] = {"初期探索", "再測定", "介入", "活用", "探索", "局所探索", "ランダム"};
+const char* kKind[] = {"初期探索", "再測定", "介入", "活用", "探索", "局所探索", "ランダム", "記憶から"};
 
 struct Study {
     std::vector<aci::Param> params;
@@ -42,6 +42,7 @@ std::string event_text(const aci::Event& e, const Study& s) {
     const std::string n = e.param >= 0 ? "『" + s.params[e.param].name + "』" : "";
     if (e.what == "freeze") return "#" + std::to_string(e.trial + 1) + " " + n + "は原因ではない → 固定";
     if (e.what == "revive") return "#" + std::to_string(e.trial + 1) + " " + n + "が再び効き始めた → 復活";
+    if (e.what == "recall") return "#" + std::to_string(e.trial + 1) + " 記憶した良い範囲から探索を開始";
     if (e.what == "doubt") return "#" + std::to_string(e.trial + 1) + " " + n + "は判定が際どい → 再検査";
     if (e.what == "zoom") return "#" + std::to_string(e.trial + 1) + " " + n + "の範囲を絞り込み（結晶化）";
     return "#" + std::to_string(e.trial + 1) + " 停滞したので範囲を再び広げた";

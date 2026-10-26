@@ -12,7 +12,11 @@
 #include <cstdio>
 #include <cstdlib>
 #include <cstring>
+#include <cctype>
 #include <filesystem>
+#include <fstream>
+#include <sstream>
+#include <type_traits>
 #include <memory>
 #include <string>
 #include <vector>
@@ -86,13 +90,54 @@ const L kEvFreeze = reg({"#%d 『%s』は原因ではない → 固定", "#%d %s
 const L kEvRevive = reg({"#%d 『%s』が再び効き始めた → 復活", "#%d %s matters again → revived"});
 const L kEvZoom = reg({"#%d 『%s』の範囲を絞り込み（結晶化）", "#%d %s: range narrowed (crystallised)"});
 const L kEvExpand = reg({"#%d 停滞したので範囲を再び広げた", "#%d stalled, so the ranges were widened again"});
+const L kEvRecall = reg({"#%d 記憶した良い範囲から探索を開始", "#%d started from the remembered good region"});
+const L kUseMemory = reg({"記憶を使う", "Use memory"});
+const L kSettings = reg({"設定", "Settings"});
+const L kTabMemory = reg({"記憶", "Memory"});
+const L kTabOptimizer = reg({"最適化", "Optimizer"});
+const L kTabDisplay = reg({"表示", "Display"});
+const L kAutoRemember = reg({"研究が終わったら自動で記憶する", "Remember automatically when a study ends"});
+const L kAutoNext = reg({"続けて次の研究を始める（連続学習）", "Start the next study automatically (continuous learning)"});
+const L kPersist = reg({"ディスクに保存する（アプリを閉じても残る）", "Save to disk (kept after the app closes)"});
+const L kSavedAt = reg({"保存先", "Saved at"});
+const L kTrust = reg({"記憶の使い方", "How memory is used"});
+const L kRecallShare = reg({"記憶から始める初期試行の割合", "Warm-up trials started from memory"});
+const L kRecallSpread = reg({"記憶した点のまわりの広がり（範囲に対する割合）", "Spread around the remembered point (share of range)"});
+const L kRecallZoom = reg({"最初の探索範囲（記憶した最良値 ± 範囲の割合）", "Starting search range (remembered best ± share of range)"});
+const L kRecallConfirm = reg({"覚えている変数を確かめる介入の回数", "Confirming interventions per remembered knob"});
+const L kForgetHL = reg({"忘却：古い研究の重みが半分になるまでの研究数（0＝忘れない）", "Forgetting: studies until an old one counts half (0 = never)"});
+const L kContents = reg({"記憶の中身", "What is remembered"});
+const L kCauseRate = reg({"原因と判定した割合", "Judged a cause"});
+const L kRememberedBest = reg({"記憶した最良値", "Remembered best"});
+const L kStudies = reg({"研究数", "Studies"});
+const L kEmpty = reg({"まだ何も記憶していません", "Nothing remembered yet"});
+const L kClearThis = reg({"この問題の記憶を消す", "Clear memory for this problem"});
+const L kClearAll = reg({"すべての記憶を消す", "Clear all memory"});
+const L kMemoryNote = reg({"記憶は提案するだけです。覚えた判定は、新しい研究でも必ず介入で確かめ直します。", "Memory only proposes. Every remembered verdict is re-checked by intervention in each new study."});
+const L kApplyNote = reg({"変更は次のリセットから有効になります。", "Changes take effect from the next reset."});
+const L kWarmupOpt = reg({"初期探索の試行数（0＝自動）", "Warm-up trials (0 = automatic)"});
+const L kBins = reg({"変数ごとの区間の数", "Bins per variable"});
+const L kGamma = reg({"成功とみなす上位の割合", "Share of trials counted as success"});
+const L kKSigma = reg({"原因と判定する閾値（ノイズの何倍）", "Cause threshold (× noise)"});
+const L kHalfLife = reg({"証拠の半減期（試行）", "Evidence half-life (trials)"});
+const L kLocalShare = reg({"局所探索の割合", "Local search share"});
+const L kRecheck = reg({"固定した変数を再検査する間隔（試行）", "Recheck frozen knobs every (trials)"});
+const L kStall = reg({"停滞とみなすまでの試行数", "Trials before a stall"});
+const L kDefaults = reg({"既定値に戻す", "Restore defaults"});
+const L kApplyNow = reg({"今すぐ適用（リセット）", "Apply now (reset)"});
+const L kMemoryLine = reg({"記憶", "Memory"});
+const L kMemOn = reg({"%d 研究分・オン", "on · %d remembered"});
+const L kMemOff = reg({"オフ", "off"});
+const L kMemoryCount = reg({"記憶している研究", "Studies remembered"});
+const L kNextStudy = reg({"次の研究へ（この研究を記憶）", "Next study (remember this one)"});
+const L kForget = reg({"記憶を消す", "Clear memory"});
 const L kEvDoubt = reg({"#%d 『%s』は判定が際どい → 再検査", "#%d %s is borderline → testing again"});
-const L kKindNames[] = {reg({"初期探索", "Warm-up"}), reg({"再測定", "Re-measure"}), reg({"介入", "Intervene"}), reg({"活用", "Exploit"}), reg({"探索", "Explore"}), reg({"局所探索", "Local search"}), reg({"ランダム", "Random"})};
+const L kKindNames[] = {reg({"初期探索", "Warm-up"}), reg({"再測定", "Re-measure"}), reg({"介入", "Intervene"}), reg({"活用", "Exploit"}), reg({"探索", "Explore"}), reg({"局所探索", "Local search"}), reg({"ランダム", "Random"}), reg({"記憶から", "From memory"})};
 }  // namespace ja
 
 static const ImVec4 kKindColor[] = {
     {0.55f, 0.55f, 0.58f, 1}, {0.95f, 0.85f, 0.30f, 1}, {0.95f, 0.35f, 0.75f, 1}, {0.30f, 0.85f, 0.95f, 1},
-    {1.00f, 0.60f, 0.20f, 1}, {0.45f, 0.95f, 0.45f, 1}, {0.70f, 0.70f, 0.70f, 1}};
+    {1.00f, 0.60f, 0.20f, 1}, {0.45f, 0.95f, 0.45f, 1}, {0.70f, 0.70f, 0.70f, 1}, {0.75f, 0.60f, 1.00f, 1}};
 
 // ------------------------------------------------------------------ fonts
 
@@ -153,6 +198,15 @@ static void style() {
     c[ImGuiCol_CheckMark] = {1, 1, 1, 1};
     c[ImGuiCol_Header] = {0.14f, 0.14f, 0.16f, 1};
     c[ImGuiCol_TableHeaderBg] = {0.10f, 0.10f, 0.12f, 1};
+    c[ImGuiCol_TitleBg] = {0.08f, 0.08f, 0.09f, 1};
+    c[ImGuiCol_TitleBgActive] = {0.12f, 0.12f, 0.14f, 1};
+    c[ImGuiCol_Tab] = {0.12f, 0.12f, 0.14f, 1};
+    c[ImGuiCol_TabHovered] = {0.30f, 0.30f, 0.33f, 1};
+    c[ImGuiCol_TabSelected] = {0.92f, 0.92f, 0.94f, 1};
+    c[ImGuiCol_TabSelectedOverline] = {1, 1, 1, 1};
+    c[ImGuiCol_Separator] = {0.22f, 0.22f, 0.25f, 1};
+    c[ImGuiCol_ResizeGrip] = {0.25f, 0.25f, 0.28f, 1};
+    c[ImGuiCol_HeaderHovered] = {0.22f, 0.22f, 0.25f, 1};
     ImPlotStyle& p = ImPlot::GetStyle();
     p.Colors[ImPlotCol_PlotBg] = {0.02f, 0.02f, 0.03f, 1};
     p.Colors[ImPlotCol_FrameBg] = {0.05f, 0.05f, 0.06f, 1};
@@ -174,10 +228,69 @@ struct Session {
     std::vector<double> slice;
     int slice_i = -1, slice_j = -1, slice_at = -1;
     double carry = 0;
+    bool use_memory = true, auto_remember = true, auto_next = false, persist = true;
+    float forget_hl = 0.0f;
+    aci::Options cfg;                // engine settings, applied at the next reset
+    aci::Memory memory;
+    int memory_problem = -1;
+    bool folded = false, show_settings = false;
 
     const aci::Problem& P() const { return probs[problem]; }
 
+    static fs::path memory_dir() {
+        const char* home = std::getenv("HOME");
+        fs::path base = home ? fs::path(home) : fs::current_path();
+#ifdef __APPLE__
+        return base / "Library" / "Application Support" / "Eternal" / "memory";
+#else
+        return base / ".eternal" / "memory";
+#endif
+    }
+    fs::path memory_path() const {
+        std::string n;
+        for (char c : P().name_en) n += std::isalnum((unsigned char)c) ? (char)std::tolower((unsigned char)c) : '-';
+        return memory_dir() / (n + ".txt");
+    }
+    void load_memory() {
+        memory = {};
+        if (!persist) return;
+        std::ifstream in(memory_path());
+        if (!in) return;
+        std::stringstream ss;
+        ss << in.rdbuf();
+        memory = aci::Memory::load(ss.str());
+    }
+    void save_memory() const {
+        if (!persist) return;
+        std::error_code ec;
+        fs::create_directories(memory_dir(), ec);
+        std::ofstream(memory_path()) << memory.save();
+    }
+    void clear_memory(bool everything) {
+        memory = {};
+        std::error_code ec;
+        if (everything) fs::remove_all(memory_dir(), ec);
+        else fs::remove(memory_path(), ec);
+    }
+
+    // fold the current study into memory, once
+    void fold() {
+        if (folded || !use_memory || !opt || !opt->screened()) return;
+        memory = opt->remember(&memory, forget_hl);
+        folded = true;
+        save_memory();
+    }
+
+    // remember this study, then start the next one with a new seed
+    void next_study() {
+        fold();
+        ++seed;
+        reset();
+    }
+
     void reset() {
+        if (memory_problem != problem) { memory_problem = problem; load_memory(); }
+        folded = false;
         aci::RandomSearch probe(P().params, 4242);
         double m = 0, s = 0;
         std::vector<double> ys;
@@ -186,7 +299,7 @@ struct Session {
         m /= ys.size();
         for (double y : ys) s += (y - m) * (y - m);
         spread = std::sqrt(s / ys.size());
-        opt = std::make_unique<aci::Optimizer>(P().params, seed);
+        opt = std::make_unique<aci::Optimizer>(P().params, seed, cfg, use_memory ? &memory : nullptr);
         rnd = std::make_unique<aci::RandomSearch>(P().params, seed + 77777);
         fa = std::make_unique<aci::Noisy>(P(), noise * spread, seed + 1);
         fr = std::make_unique<aci::Noisy>(P(), noise * spread, seed + 2);
@@ -199,7 +312,12 @@ struct Session {
     int done() const { return static_cast<int>(opt->trials().size()); }
 
     void step() {
-        if (done() >= budget) { running = false; return; }
+        if (done() >= budget) {
+            if (auto_remember) fold();
+            if (auto_next && running) next_study();
+            else running = false;
+            return;
+        }
         auto x = opt->ask();
         opt->tell((*fa)(x));
         auto r = rnd->ask();
@@ -254,6 +372,7 @@ static std::string event_text(const aci::Event& e, const aci::Problem& p) {
     else if (e.what == "revive") std::snprintf(buf, sizeof buf, tr(ja::kEvRevive), e.trial + 1, name);
     else if (e.what == "doubt") std::snprintf(buf, sizeof buf, tr(ja::kEvDoubt), e.trial + 1, name);
     else if (e.what == "zoom") std::snprintf(buf, sizeof buf, tr(ja::kEvZoom), e.trial + 1, name);
+    else if (e.what == "recall") std::snprintf(buf, sizeof buf, tr(ja::kEvRecall), e.trial + 1);
     else std::snprintf(buf, sizeof buf, tr(ja::kEvExpand), e.trial + 1);
     return buf;
 }
@@ -304,7 +423,13 @@ static void controls(Session& s, ImFont* big) {
     ImGui::SameLine();
     if (ImGui::Button(tr(ja::kStep), {w, 34})) { s.running = false; s.step(); }
     if (ImGui::Button(tr(ja::kReset), {-1, 30})) { s.running = false; s.reset(); }
+    if (ImGui::Button(tr(ja::kNextStudy), {-1, 30})) { s.running = false; s.next_study(); }
+    if (ImGui::Button(tr(ja::kSettings), {-1, 30})) s.show_settings = true;
     ImGui::PopStyleColor();
+    ImGui::TextUnformatted(tr(ja::kMemoryLine));
+    ImGui::SameLine(g_en ? 175 : 190);
+    if (s.use_memory) ImGui::Text(tr(ja::kMemOn), s.memory.studies);
+    else ImGui::TextDisabled("%s", tr(ja::kMemOff));
     ImGui::TextDisabled("%s", s.done() >= s.budget ? tr(ja::kDone) : s.running ? tr(ja::kRunning) : tr(ja::kPaused));
     ImGui::Separator();
 
@@ -328,12 +453,14 @@ static void controls(Session& s, ImFont* big) {
     ImGui::Separator();
 
     ImGui::TextUnformatted(tr(ja::kKinds));
-    for (int k = 0; k < 6; ++k) {
+    int shown = 0;
+    for (int k : {0, 1, 2, 3, 4, 5, 7}) {
         ImGui::ColorButton("##k", kKindColor[k], ImGuiColorEditFlags_NoTooltip, {12, 12});
         ImGui::SameLine();
         ImGui::TextUnformatted(tr(ja::kKindNames[k]));
-        if (k % 2 == 0) ImGui::SameLine(160);
+        if (shown++ % 2 == 0) ImGui::SameLine(160);
     }
+    ImGui::NewLine();
     ImGui::Separator();
     ImGui::TextUnformatted(tr(ja::kLog));
     ImGui::BeginChild("##log", {0, 0}, ImGuiChildFlags_Borders);
@@ -341,6 +468,125 @@ static void controls(Session& s, ImFont* big) {
     for (int i = (int)ev.size() - 1; i >= 0 && i >= (int)ev.size() - 40; --i)
         ImGui::TextWrapped("%s", event_text(ev[i], s.P()).c_str());
     ImGui::EndChild();
+}
+
+template <class T>
+static bool slider(const char* label, const char* id, T* v, T lo, T hi, const char* fmt) {
+    ImGui::TextUnformatted(label);
+    ImGui::SetNextItemWidth(-1);
+    if constexpr (std::is_same_v<T, int>) return ImGui::SliderInt(id, v, lo, hi, fmt);
+    else return ImGui::SliderScalar(id, ImGuiDataType_Double, v, &lo, &hi, fmt);
+}
+
+static void settings_window(Session& s) {
+    if (!s.show_settings) return;
+    const ImGuiViewport* vp = ImGui::GetMainViewport();
+    ImGui::SetNextWindowPos({vp->WorkPos.x + vp->WorkSize.x * 0.5f, vp->WorkPos.y + vp->WorkSize.y * 0.5f}, ImGuiCond_Appearing, {0.5f, 0.5f});
+    ImGui::SetNextWindowSize({660, std::min(820.0f, vp->WorkSize.y - 40)}, ImGuiCond_Appearing);
+    ImGui::PushStyleColor(ImGuiCol_WindowBg, ImVec4(0.06f, 0.06f, 0.07f, 1));
+    std::string title = std::string(tr(ja::kSettings)) + "###settings";
+    if (!ImGui::Begin(title.c_str(), &s.show_settings, ImGuiWindowFlags_NoCollapse)) { ImGui::End(); ImGui::PopStyleColor(); return; }
+    if (ImGui::BeginTabBar("##tabs")) {
+        static int open_tab = 0;
+        auto tab = [&](const char* label, int idx) {
+            ImGui::PushStyleColor(ImGuiCol_Text, open_tab == idx ? ImVec4(0, 0, 0, 1) : ImVec4(0.9f, 0.9f, 0.92f, 1));
+            const bool on = ImGui::BeginTabItem(label);
+            ImGui::PopStyleColor();
+            if (on) open_tab = idx;
+            return on;
+        };
+        if (tab(tr(ja::kTabMemory), 0)) {
+            ImGui::Spacing();
+            if (ImGui::Checkbox(tr(ja::kUseMemory), &s.use_memory)) { s.running = false; s.reset(); }
+            ImGui::BeginDisabled(!s.use_memory);
+            ImGui::Checkbox(tr(ja::kAutoRemember), &s.auto_remember);
+            ImGui::Checkbox(tr(ja::kAutoNext), &s.auto_next);
+            if (ImGui::Checkbox(tr(ja::kPersist), &s.persist) && s.persist) s.save_memory();
+            if (s.persist) ImGui::TextDisabled("%s: %s", tr(ja::kSavedAt), s.memory_path().string().c_str());
+            ImGui::SeparatorText(tr(ja::kTrust));
+            slider(tr(ja::kRecallShare), "##rs", &s.cfg.recall_share, 0.0, 1.0, "%.2f");
+            slider(tr(ja::kRecallSpread), "##rp", &s.cfg.recall_spread, 0.01, 0.3, "%.2f");
+            slider(tr(ja::kRecallZoom), "##rz", &s.cfg.recall_zoom, 0.05, 0.5, "%.2f");
+            slider(tr(ja::kRecallConfirm), "##rc", &s.cfg.recall_confirm, 1, 3, "%d");
+            ImGui::TextUnformatted(tr(ja::kForgetHL));
+            ImGui::SetNextItemWidth(-1);
+            ImGui::SliderFloat("##fh", &s.forget_hl, 0.0f, 20.0f, "%.1f");
+            ImGui::EndDisabled();
+            ImGui::TextDisabled("%s", tr(ja::kApplyNote));
+
+            ImGui::SeparatorText(tr(ja::kContents));
+            if (s.memory.entries.empty()) ImGui::TextDisabled("%s", tr(ja::kEmpty));
+            else if (ImGui::BeginTable("##mem", 4, ImGuiTableFlags_RowBg | ImGuiTableFlags_SizingStretchProp | ImGuiTableFlags_ScrollY, {0, 190})) {
+                for (const char* h : {tr(ja::kVar), tr(ja::kCauseRate), tr(ja::kRememberedBest), tr(ja::kStudies)}) ImGui::TableSetupColumn(h);
+                ImGui::TableSetupScrollFreeze(0, 1);
+                ImGui::TableHeadersRow();
+                for (const auto& e : s.memory.entries) {
+                    int i = -1;
+                    for (int k = 0; k < (int)s.P().params.size(); ++k) if (s.P().params[k].name == e.name) i = k;
+                    const double rate = e.seen > 0 ? e.cause_votes / e.seen : 0;
+                    ImGui::TableNextRow();
+                    ImGui::TableNextColumn(); ImGui::TextUnformatted(i >= 0 ? pname(s.P(), i) : e.name.c_str());
+                    ImGui::TableNextColumn(); ImGui::ProgressBar((float)rate, {-1, 0}, ""); ImGui::SameLine(8); ImGui::Text("%.0f%%", rate * 100);
+                    ImGui::TableNextColumn();
+                    if (rate >= 0.5 && i >= 0) ImGui::Text("%.4g", s.P().params[i].lo + e.best_u * (s.P().params[i].hi - s.P().params[i].lo));
+                    else ImGui::TextDisabled("─");
+                    ImGui::TableNextColumn(); ImGui::Text("%.1f", e.seen);
+                }
+                ImGui::EndTable();
+            }
+            ImGui::Spacing();
+            ImGui::PushStyleColor(ImGuiCol_Text, ImVec4(0, 0, 0, 1));
+            const float w = (ImGui::GetContentRegionAvail().x - 8) / 2;
+            if (ImGui::Button(tr(ja::kClearThis), {w, 30})) { s.clear_memory(false); s.running = false; s.reset(); }
+            ImGui::SameLine();
+            if (ImGui::Button(tr(ja::kClearAll), {w, 30})) { s.clear_memory(true); s.running = false; s.reset(); }
+            ImGui::PopStyleColor();
+            ImGui::Spacing();
+            ImGui::TextWrapped("%s", tr(ja::kMemoryNote));
+            ImGui::EndTabItem();
+        }
+        if (tab(tr(ja::kTabOptimizer), 1)) {
+            ImGui::Spacing();
+            auto& c = s.cfg;
+            slider(tr(ja::kWarmupOpt), "##wu", &c.warmup, 0, 60, "%d");
+            slider(tr(ja::kBins), "##bn", &c.bins, 3, 12, "%d");
+            slider(tr(ja::kGamma), "##gm", &c.gamma, 0.1, 0.5, "%.2f");
+            slider(tr(ja::kKSigma), "##ks", &c.k_sigma, 2.0, 8.0, "%.1f");
+            slider(tr(ja::kHalfLife), "##hl", &c.half_life, 8.0, 256.0, "%.0f");
+            slider(tr(ja::kLocalShare), "##ls", &c.local_share, 0.0, 0.8, "%.2f");
+            slider(tr(ja::kRecheck), "##rk", &c.recheck_every, 20, 300, "%d");
+            slider(tr(ja::kStall), "##st", &c.stall_reset, 20, 200, "%d");
+            ImGui::TextDisabled("%s", tr(ja::kApplyNote));
+            ImGui::Spacing();
+            ImGui::PushStyleColor(ImGuiCol_Text, ImVec4(0, 0, 0, 1));
+            const float w = (ImGui::GetContentRegionAvail().x - 8) / 2;
+            if (ImGui::Button(tr(ja::kDefaults), {w, 30})) {
+                const aci::Options d;
+                c.warmup = d.warmup; c.bins = d.bins; c.gamma = d.gamma; c.k_sigma = d.k_sigma; c.half_life = d.half_life;
+                c.local_share = d.local_share; c.recheck_every = d.recheck_every; c.stall_reset = d.stall_reset;
+            }
+            ImGui::SameLine();
+            if (ImGui::Button(tr(ja::kApplyNow), {w, 30})) { s.running = false; s.reset(); }
+            ImGui::PopStyleColor();
+            ImGui::EndTabItem();
+        }
+        if (tab(tr(ja::kTabDisplay), 2)) {
+            ImGui::Spacing();
+            ImGui::TextUnformatted(tr(ja::kLanguage));
+            bool lang = false;
+            if (ImGui::RadioButton("日本語##2", !g_en)) { g_en = false; lang = true; }
+            ImGui::SameLine();
+            if (ImGui::RadioButton("English##2", g_en)) { g_en = true; lang = true; }
+            if (lang) glfwSetWindowTitle(glfwGetCurrentContext(), tr(ja::kTitle));
+            ImGui::TextUnformatted(tr(ja::kSpeed));
+            ImGui::SetNextItemWidth(-1);
+            ImGui::SliderFloat("##speed2", &s.speed, 1.0f, 400.0f, "%.0f", ImGuiSliderFlags_Logarithmic);
+            ImGui::EndTabItem();
+        }
+        ImGui::EndTabBar();
+    }
+    ImGui::End();
+    ImGui::PopStyleColor();
 }
 
 static void history_plot(Session& s, ImVec2 size) {
@@ -354,7 +600,7 @@ static void history_plot(Session& s, ImVec2 size) {
             ImPlot::SetNextLineStyle({1, 1, 1, 1}, 2.5f);
             ImPlot::PlotLine(tr(ja::kAciLine), s.xs.data(), s.gap_aci.data(), (int)s.xs.size());
             // every trial, coloured by kind, at its own true gap
-            for (int k = 0; k < 6; ++k) {
+            for (int k : {0, 1, 2, 3, 4, 5, 7}) {
                 std::vector<double> tx, ty;
                 for (const auto& t : s.opt->trials())
                     if ((int)t.kind == k) { tx.push_back(t.id + 1); ty.push_back(std::max(1e-9, s.P().f(t.x) - s.P().optimum)); }
@@ -427,7 +673,7 @@ static void slice_plot(Session& s, ImVec2 size) {
         double ry[5] = {lo[s.slice_j], lo[s.slice_j], hi[s.slice_j], hi[s.slice_j], lo[s.slice_j]};
         ImPlot::SetNextLineStyle({0.30f, 0.85f, 0.95f, 1}, 1.5f);
         ImPlot::PlotLine("##region", rx, ry, 5);
-        for (int k = 0; k < 6; ++k) {
+        for (int k : {0, 1, 2, 3, 4, 5, 7}) {
             std::vector<double> tx, ty;
             for (const auto& t : s.opt->trials())
                 if ((int)t.kind == k) { tx.push_back(t.x[s.slice_i]); ty.push_back(t.x[s.slice_j]); }
@@ -532,6 +778,7 @@ int main(int argc, char** argv) {
     std::string capture;
     int cap_steps = 250, cap_problem = 0;
     float cap_noise = 0.0f;
+    int cap_settings = 0;
     for (int i = 1; i + 1 < argc; ++i) {
         const std::string a = argv[i];
         if (a == "--capture") capture = argv[++i];
@@ -539,6 +786,7 @@ int main(int argc, char** argv) {
         else if (a == "--problem") cap_problem = std::atoi(argv[++i]);
         else if (a == "--noise") cap_noise = (float)std::atof(argv[++i]);
         else if (a == "--lang") g_en = std::string(argv[++i]) == "en";
+        else if (a == "--settings") cap_settings = std::atoi(argv[++i]);
     }
     if (!glfwInit()) return 1;
     if (!capture.empty()) glfwWindowHint(GLFW_VISIBLE, GLFW_FALSE);
@@ -565,7 +813,7 @@ int main(int argc, char** argv) {
     ImGui_ImplOpenGL3_Init("#version 150");
     if (!capture.empty()) { s.problem = cap_problem; s.noise = cap_noise; s.budget = std::max(s.budget, cap_steps); }
     s.reset();
-    if (!capture.empty()) for (int i = 0; i < cap_steps; ++i) s.step();
+    if (!capture.empty()) { s.persist = false; s.memory = {}; for (int i = 0; i < cap_steps; ++i) s.step(); s.fold(); s.show_settings = cap_settings != 0; }
     int frames = 0;
 
     auto last = std::chrono::steady_clock::now();
@@ -599,6 +847,7 @@ int main(int argc, char** argv) {
         parallel_plot(s, {W, H});     ImGui::SameLine(); drives_plot(s, {W, H});
         ImGui::EndChild();
         ImGui::End();
+        settings_window(s);
 
         ImGui::Render();
         int fw, fh;

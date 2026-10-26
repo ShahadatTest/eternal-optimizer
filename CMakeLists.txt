@@ -25,6 +25,12 @@ FetchContent_MakeAvailable(json)
 add_executable(eternal_mcp tools/mcp_server.cpp)
 target_link_libraries(eternal_mcp PRIVATE aci_opt nlohmann_json::nlohmann_json)
 
+add_executable(eternal_compare tools/compare_tools.cpp)
+target_link_libraries(eternal_compare PRIVATE aci_opt)
+
+add_executable(eternal_transfer tools/transfer.cpp)
+target_link_libraries(eternal_transfer PRIVATE aci_opt)
+
 add_executable(eternal_matmul tools/matmul_bench.cpp)
 target_compile_options(eternal_matmul PRIVATE -O2)
 
