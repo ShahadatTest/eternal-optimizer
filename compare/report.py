@@ -25,8 +25,9 @@ def main():
         by.setdefault((r["problem"], r["noise"], r["method"]), {})[r["seed"]] = r
 
     lines = [f"# Eternal vs Optuna vs Ax vs random search\n",
-             f"Budget {budget} trials, {data['seeds']} seeds per scenario. Score: true gap to the optimum of the "
-             f"best observed point (lower is better). Median over seeds; bold is the best median.\n",
+             f"Budget {budget} trials, {data['seeds']} seeds per scenario ({data.get('ax_seeds', data['seeds'])} for Ax, "
+             f"the slowest). Score: true gap to the optimum of the best observed point (lower is better). "
+             f"Median over seeds; bold is the best median. Ranks use only the seeds every method ran.\n",
              "| Problem | Noise | Trials | " + " | ".join(LABEL[m] for m in ORDER) + " |",
              "|---|---|---|" + "---|" * len(ORDER)]
     rank_rows = []

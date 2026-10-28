@@ -5,7 +5,10 @@ Same functions (verified identical to the C++ ones), same budget, same noise mod
 after each trial, the true gap to the optimum of the point with the best observed (noisy) value.
 Every library runs with its defaults.
 
-  .venv-compare/bin/python compare/run_compare.py [budget] [seeds] [processes]
+  .venv-compare/bin/python compare/run_compare.py [budget] [seeds] [processes] [ax_seeds]
+
+Ax is by far the slowest (about 20 minutes per 100-trial run here), so it can be given fewer seeds.
+Runs already in compare/results.json (or results_partial.json) are kept and not repeated.
 """
 import json
 import logging
@@ -98,15 +101,32 @@ def main():
     budget = int(sys.argv[1]) if len(sys.argv) > 1 else 100
     seeds = int(sys.argv[2]) if len(sys.argv) > 2 else 10
     procs = int(sys.argv[3]) if len(sys.argv) > 3 else 8
-    jobs = [(m, k, n, s, budget) for m in METHODS for k in range(len(PROBLEMS)) for n in NOISES for s in range(seeds)]
+    ax_seeds = int(sys.argv[4]) if len(sys.argv) > 4 else seeds
+    n_seeds = lambda m: ax_seeds if m == "ax" else seeds
+    results, seen = [], set()
+    for name in ("results.json", "results_partial.json"):
+        path = ROOT / "compare" / name
+        if not path.exists():
+            continue
+        old = json.load(open(path))
+        if old.get("budget") != budget:
+            continue
+        for r in old["results"]:
+            key = (r["method"], r["problem"], r["noise"], r["seed"])
+            if key not in seen and r["seed"] < n_seeds(r["method"]):
+                seen.add(key)
+                results.append(r)
+    print(f"resuming with {len(results)} finished runs", flush=True)
+    jobs = [(m, k, n, s, budget) for m in METHODS for k in range(len(PROBLEMS)) for n in NOISES for s in range(n_seeds(m))
+            if (m, k, n, s) not in seen]
     jobs.sort(key=lambda j: j[0] != "ax")          # the slow ones first
-    results = []
+    total = len(results) + len(jobs)
     with mp.get_context("spawn").Pool(procs) as pool:
         for i, r in enumerate(pool.imap_unordered(job, jobs), 1):
             results.append(r)
-            if i % 20 == 0 or i == len(jobs):
-                print(f"{i}/{len(jobs)} done", flush=True)
-                json.dump(dict(budget=budget, seeds=seeds, results=results),
+            if i % 5 == 0 or i == len(jobs):
+                print(f"{len(results)}/{total} done", flush=True)
+                json.dump(dict(budget=budget, seeds=seeds, ax_seeds=ax_seeds, results=results),
                           open(ROOT / "compare" / "results.json", "w"))
     print("saved compare/results.json")
 

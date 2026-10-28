@@ -6,3 +6,4 @@ build-err.log
 __pycache__/
 compare/run.log
 compare/*.log
+compare/results_partial.json
