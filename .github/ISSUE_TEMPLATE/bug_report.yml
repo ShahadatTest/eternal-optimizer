@@ -1,0 +1,22 @@
+name: Bug report
+description: Something crashes, gives wrong results, or does not build
+labels: [bug]
+body:
+  - type: textarea
+    id: what
+    attributes:
+      label: What happened
+      description: What you ran, what you expected, and what you got.
+    validations:
+      required: true
+  - type: textarea
+    id: repro
+    attributes:
+      label: Minimal reproduction
+      description: A short Python or C++ snippet (parameters, seed, budget) that shows the problem.
+      render: python
+  - type: input
+    id: env
+    attributes:
+      label: Environment
+      placeholder: "eternal-optimizer 0.1.0, Python 3.12, macOS 15 / Ubuntu 24.04"

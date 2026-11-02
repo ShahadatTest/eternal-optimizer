@@ -1,0 +1,15 @@
+name: Benchmark result
+description: Share a problem where Eternal did well or badly — losses are just as useful
+labels: [benchmark]
+body:
+  - type: textarea
+    id: setup
+    attributes:
+      label: Problem and setup
+      description: Dimensions, noise, budget, seeds, and what you compared against.
+    validations:
+      required: true
+  - type: textarea
+    id: results
+    attributes:
+      label: Results

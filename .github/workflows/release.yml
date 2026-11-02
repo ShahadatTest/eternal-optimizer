@@ -1,0 +1,51 @@
+name: Release
+
+# Builds wheels for Linux, macOS and Windows and publishes them to PyPI when a GitHub release is
+# published. Uses PyPI trusted publishing: no API token is stored in the repository.
+on:
+  release:
+    types: [published]
+  workflow_dispatch:
+
+jobs:
+  wheels:
+    name: Wheels (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        os: [ubuntu-latest, ubuntu-24.04-arm, macos-latest, macos-13, windows-latest]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pypa/cibuildwheel@v2.22.0
+        env:
+          CIBW_SKIP: "pp* *-musllinux_i686 *-win32 *-manylinux_i686"
+          CIBW_TEST_EXTRAS: test
+          CIBW_TEST_COMMAND: pytest -q {project}/python/tests
+      - uses: actions/upload-artifact@v4
+        with:
+          name: wheels-${{ matrix.os }}
+          path: wheelhouse/*.whl
+
+  sdist:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: pipx run build --sdist
+      - uses: actions/upload-artifact@v4
+        with:
+          name: sdist
+          path: dist/*.tar.gz
+
+  publish:
+    needs: [wheels, sdist]
+    if: github.event_name == 'release'
+    runs-on: ubuntu-latest
+    environment: pypi
+    permissions:
+      id-token: write
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          path: dist
+          merge-multiple: true
+      - uses: pypa/gh-action-pypi-publish@release/v1

@@ -7,6 +7,7 @@
 // Prints the median wall time of 3 runs in milliseconds.
 #include <algorithm>
 #include <chrono>
+#include <cmath>
 #include <cstdio>
 #include <cstdlib>
 #include <cstring>
