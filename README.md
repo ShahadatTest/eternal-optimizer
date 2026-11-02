@@ -76,7 +76,7 @@ cmake --build build -j 8
 ```
 
 GLFW 3.4、Dear ImGui 1.91.5、ImPlot 0.16 は CMake が固定バージョンで取得します。
-日本語フォントは macOS のヒラギノ角ゴシックを使います。
+日本語フォントは macOS のヒラギノ角ゴシック、なければ Linux の Noto Sans CJK（Debian / Arch / Fedora の一般的な配置）や Windows の Yu Gothic / Meiryo を探します。見出し用は Bold / W6 を優先し、なければ Regular を使います。CJK フォントが一つも無いときは英語で起動し、試した旨を stderr に出します。
 設定パネルの「言語」で日本語と英語を切り替えられます（`--lang en` で英語起動）。
 
 ## MCP 接続（AI から操作する）

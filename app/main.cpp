@@ -159,20 +159,54 @@ static const ImVec4 kKindColor[] = {
 
 // ------------------------------------------------------------------ fonts
 
-static std::string find_font(const char* suffix) {
+static std::string first_existing(std::initializer_list<const char*> paths) {
+    for (const char* p : paths)
+        if (p && fs::exists(p)) return p;
+    return {};
+}
+
+// Prefer macOS Hiragino W3/W6 when present; otherwise Noto CJK / Yu Gothic paths
+// used on common Linux distros and Windows (#6).
+static std::string find_regular_cjk_font() {
     for (const char* dir : {"/System/Library/Fonts", "/Library/Fonts"}) {
         std::error_code ec;
         for (const auto& e : fs::directory_iterator(dir, ec)) {
             const std::string n = e.path().filename().string();
-            if (n.size() >= std::strlen(suffix) && n.compare(n.size() - std::strlen(suffix), std::strlen(suffix), suffix) == 0 &&
-                n.find("GB") == std::string::npos)
+            if (n.size() >= 6 && n.compare(n.size() - 6, 6, "W3.ttc") == 0 && n.find("GB") == std::string::npos)
                 return e.path().string();
         }
     }
-    for (const char* p : {"/usr/share/fonts/opentype/noto/NotoSansCJK-Regular.ttc", "C:/Windows/Fonts/meiryo.ttc",
-                          "/System/Library/Fonts/Hiragino Sans GB.ttc"})
-        if (fs::exists(p)) return p;
-    return {};
+    return first_existing({
+            "/usr/share/fonts/opentype/noto/NotoSansCJK-Regular.ttc",          // Debian/Ubuntu
+            "/usr/share/fonts/noto-cjk/NotoSansCJK-Regular.ttc",               // Arch
+            "/usr/share/google-noto-sans-cjk-fonts/NotoSansCJK-Regular.ttc", // Fedora
+            "/usr/share/fonts/google-noto-cjk/NotoSansCJK-Regular.ttc",
+            "/usr/share/fonts/truetype/noto/NotoSansCJK-Regular.ttc",
+            "C:/Windows/Fonts/YuGothR.ttc",
+            "C:/Windows/Fonts/yugothic.ttf",
+            "C:/Windows/Fonts/meiryo.ttc",
+            "/System/Library/Fonts/Hiragino Sans GB.ttc",
+    });
+}
+
+static std::string find_bold_cjk_font() {
+    for (const char* dir : {"/System/Library/Fonts", "/Library/Fonts"}) {
+        std::error_code ec;
+        for (const auto& e : fs::directory_iterator(dir, ec)) {
+            const std::string n = e.path().filename().string();
+            if (n.size() >= 6 && n.compare(n.size() - 6, 6, "W6.ttc") == 0 && n.find("GB") == std::string::npos)
+                return e.path().string();
+        }
+    }
+    return first_existing({
+            "/usr/share/fonts/opentype/noto/NotoSansCJK-Bold.ttc",
+            "/usr/share/fonts/noto-cjk/NotoSansCJK-Bold.ttc",
+            "/usr/share/google-noto-sans-cjk-fonts/NotoSansCJK-Bold.ttc",
+            "/usr/share/fonts/google-noto-cjk/NotoSansCJK-Bold.ttc",
+            "/usr/share/fonts/truetype/noto/NotoSansCJK-Bold.ttc",
+            "C:/Windows/Fonts/YuGothB.ttc",
+            "C:/Windows/Fonts/meiryob.ttc",
+    });
 }
 
 static void load_fonts(float scale, const std::vector<aci::Problem>& probs, ImFont** big) {
@@ -189,12 +223,24 @@ static void load_fonts(float scale, const std::vector<aci::Problem>& probs, ImFo
     static ImVector<ImWchar> ranges;
     b.BuildRanges(&ranges);
 
-    const std::string regular = find_font("W3.ttc"), bold = find_font("W6.ttc");
+    const std::string regular = find_regular_cjk_font(), bold = find_bold_cjk_font();
     ImFontConfig cfg;
     cfg.OversampleH = 2;
-    if (!regular.empty()) io.Fonts->AddFontFromFileTTF(regular.c_str(), 16.0f * scale, &cfg, ranges.Data);
-    else io.Fonts->AddFontDefault();
-    *big = !bold.empty() ? io.Fonts->AddFontFromFileTTF(bold.c_str(), 26.0f * scale, &cfg, ranges.Data) : nullptr;
+    if (!regular.empty()) {
+        io.Fonts->AddFontFromFileTTF(regular.c_str(), 16.0f * scale, &cfg, ranges.Data);
+    } else {
+        // No CJK face: default font cannot draw Japanese. Prefer English UI (#6).
+        if (!g_en) {
+            std::fprintf(stderr,
+                    "eternal: no CJK font found (tried Noto Sans CJK / Yu Gothic / Hiragino); "
+                    "starting in English. Pass --lang ja after installing a CJK font.\n");
+            g_en = true;
+        }
+        io.Fonts->AddFontDefault();
+    }
+    *big = !bold.empty() ? io.Fonts->AddFontFromFileTTF(bold.c_str(), 26.0f * scale, &cfg, ranges.Data)
+                         : (!regular.empty() ? io.Fonts->AddFontFromFileTTF(regular.c_str(), 26.0f * scale, &cfg, ranges.Data)
+                                             : nullptr);
     io.FontGlobalScale = 1.0f / scale;
 }
 

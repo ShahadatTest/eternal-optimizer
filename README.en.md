@@ -135,7 +135,10 @@ cmake --build build -j 8
 ```
 
 The engine (`include/aci_opt.hpp`, `src/aci_opt.cpp`) has no dependencies. GLFW 3.4, Dear ImGui 1.91.5
-and ImPlot 0.16 are fetched at pinned versions for the app only.
+and ImPlot 0.16 are fetched at pinned versions for the app only. The desktop app looks for a CJK font
+(macOS Hiragino, then common Noto Sans CJK paths on Debian/Arch/Fedora, then Yu Gothic / Meiryo on
+Windows). Headings prefer a bold face when available. If none is found, it starts in English and logs
+the miss to stderr.
 
 ## License
 
