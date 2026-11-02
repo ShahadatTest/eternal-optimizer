@@ -8,17 +8,34 @@ if(NOT CMAKE_BUILD_TYPE)
 endif()
 
 option(ETERNAL_GUI "Build the desktop app (fetches GLFW, Dear ImGui, ImPlot)" ON)
+option(ETERNAL_TOOLS "Build the benchmarks, MCP server, showcase and tests" ON)
+option(ETERNAL_PYTHON "Build the Python module (pybind11)" OFF)
+
+include(FetchContent)
 
 # ---- the engine: no dependencies
 add_library(aci_opt src/aci_opt.cpp)
 target_include_directories(aci_opt PUBLIC include)
-target_compile_options(aci_opt PRIVATE -Wall -Wextra)
+if(NOT MSVC)
+  target_compile_options(aci_opt PRIVATE -Wall -Wextra)
+endif()
+set_target_properties(aci_opt PROPERTIES POSITION_INDEPENDENT_CODE ON)
+
+# ---- the Python module (built by scikit-build-core via pyproject.toml)
+if(ETERNAL_PYTHON)
+  find_package(Python REQUIRED COMPONENTS Interpreter Development.Module)
+  find_package(pybind11 CONFIG REQUIRED)
+  pybind11_add_module(_core python/eternal_bindings.cpp)
+  target_link_libraries(_core PRIVATE aci_opt)
+  install(TARGETS _core DESTINATION eternal)
+endif()
+
+if(ETERNAL_TOOLS)
 
 add_executable(eternal_bench tools/bench.cpp)
 target_link_libraries(eternal_bench PRIVATE aci_opt)
 
 # ---- the MCP server (JSON via nlohmann/json, pinned) and the showcase workload
-include(FetchContent)
 FetchContent_Declare(json URL https://github.com/nlohmann/json/releases/download/v3.11.3/json.tar.xz
                      URL_HASH SHA256=d6c65aca6b1ed68e7a182f4757257b107ae403032760ed6ef121c9d55e81757d)
 FetchContent_MakeAvailable(json)
@@ -38,6 +55,7 @@ enable_testing()
 add_executable(eternal_tests tests/test_engine.cpp)
 target_link_libraries(eternal_tests PRIVATE aci_opt)
 add_test(NAME engine COMMAND eternal_tests)
+endif()
 
 # ---- the desktop app
 if(ETERNAL_GUI)

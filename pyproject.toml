@@ -1,0 +1,46 @@
+[build-system]
+requires = ["scikit-build-core>=0.10", "pybind11>=2.12"]
+build-backend = "scikit_build_core.build"
+
+[project]
+name = "eternal-optimizer"
+version = "0.1.0"
+description = "A causal black-box optimizer: intervenes before it models, and tells you which knobs matter"
+readme = "README.en.md"
+license = "MIT"
+license-files = ["LICENSE"]
+requires-python = ">=3.9"
+authors = [{ name = "phyrobyte" }]
+keywords = ["optimization", "black-box", "hyperparameter", "causal", "bayesian-optimization", "ask-tell", "mcp"]
+classifiers = [
+  "Development Status :: 3 - Alpha",
+  "Intended Audience :: Science/Research",
+  "Intended Audience :: Developers",
+  "Programming Language :: C++",
+  "Programming Language :: Python :: 3",
+  "Topic :: Scientific/Engineering :: Mathematics",
+  "Topic :: Scientific/Engineering :: Artificial Intelligence",
+]
+
+[project.urls]
+Homepage = "https://github.com/phyrobyte/eternal-optimizer"
+Issues = "https://github.com/phyrobyte/eternal-optimizer/issues"
+Changelog = "https://github.com/phyrobyte/eternal-optimizer/blob/main/CHANGELOG.md"
+
+[project.optional-dependencies]
+test = ["pytest>=7"]
+
+[tool.scikit-build]
+minimum-version = "build-system.requires"
+wheel.packages = ["python/eternal"]
+cmake.build-type = "Release"
+sdist.include = ["include", "src", "python", "CMakeLists.txt", "LICENSE", "README.en.md"]
+sdist.exclude = ["**/__pycache__", "/compare", "/showcase", "/app", "/tools", "/tests"]
+
+[tool.scikit-build.cmake.define]
+ETERNAL_GUI = "OFF"
+ETERNAL_TOOLS = "OFF"
+ETERNAL_PYTHON = "ON"
+
+[tool.pytest.ini_options]
+testpaths = ["python/tests"]

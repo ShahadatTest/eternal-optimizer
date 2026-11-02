@@ -1,5 +1,7 @@
 # 永遠 ─ 因果最適化ラボ
 
+[English](README.en.md) · `pip install eternal-optimizer` · MIT
+
 **測れるものを任せてください。仕組みを教えなくても、良くする方法を自分で見つけます。**
 
 Lunaform の因果AI「永遠（ACI）」を、ブラックボックス最適化エンジンにしたものです。

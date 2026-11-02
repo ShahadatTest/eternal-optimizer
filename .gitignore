@@ -7,3 +7,7 @@ __pycache__/
 compare/run.log
 compare/*.log
 compare/results_partial.json
+dist/
+*.egg-info/
+.venv/
+.pytest_cache/
